@@ -74,9 +74,78 @@ The agent reads parsed screen state and decides what to do. The decision hierarc
 6. EXPLORE: BFS toward most interesting unvisited tile
 7. SEARCH: look for secret doors when stuck
 
-## Interest Model (transplanted from Abyssal Crawler)
+## Context-Dependent Interest (April 15 Evening)
 
-Tiles have novelty scores:
+Static interest scores fail because the same tile is more or less interesting depending on the agent's context.
+
+```python
+def _interest(self, x, y, screen):
+    """Empty rooms are cold. Exits are hot. Context changes what matters."""
+    # Wall check: BOTH known_walls AND current screen walls
+    if (x,y) in self.known_walls: return -999
+    if screen and (x,y) in screen.walls: return -999
+    
+    in_corridor = (px,py) in self.known_corridors
+    is_door = (x,y) in self.known_doors
+    is_corridor = (x,y) in self.known_corridors
+    is_stairs = self.known_stairs and (x,y) == self.known_stairs
+    
+    if (x,y) not in self.visited:
+        sc = 8.0  # mystery
+        if is_stairs: sc += 20.0
+        if is_door and not in_corridor: sc += 10.0  # room exit
+        if is_corridor and not in_corridor: sc += 8.0  # room exit
+        return sc
+    
+    # Visited: room is dying
+    v = self.vcount.get((x,y), 1)
+    sc = -2.0 - v*0.5  # goes cold fast
+    
+    # What survives death: exits only
+    if is_stairs: sc += 15.0
+    if is_door: sc += 8.0
+    if is_corridor: sc += 6.0
+    return sc
+```
+
+**Key principle:** Once a room is empty, the ONLY interesting thing about it is what it leads to. The room dies. The exits live.
+
+**Context switches:**
+- In room → doors/corridors are hot (exits)
+- In corridor → corridor ends are hot (lead to rooms)
+- Low HP → items are hot (+15 instead of +6)
+
+## Smart Movement — Cardinal vs Diagonal
+
+```python
+def _move(self, dx, dy, screen=None, run=True):
+    """Cardinal in corridors, diagonal in open rooms."""
+    dx = max(-1,min(1,dx)); dy = max(-1,min(1,dy))
+    
+    # Default: cardinal (reliable, works through doors)
+    if abs(dx) >= abs(dy):
+        ch = {(1,0):'L',(-1,0):'H'}.get((dx,0), 'J')
+    else:
+        ch = {(0,1):'J',(0,-1):'K'}.get((0,dy), 'L')
+    
+    # In open rooms with diagonal target: use diagonal
+    if screen and dx != 0 and dy != 0:
+        adj_open = sum(1 for ddx,ddy in [(1,0),(-1,0),(0,1),(0,-1),
+                       (1,1),(-1,1),(1,-1),(-1,-1)]
+                      if (px+ddx,py+ddy) in (screen.floors|screen.corridors|screen.doors))
+        if adj_open >= 5:  # open area — diagonals safe
+            diag = {(1,1):'N',(-1,1):'B',(1,-1):'U',(-1,-1):'Y'}
+            ch = diag.get((dx,dy), ch)
+    
+    return ch if run else ch.lower()
+```
+
+**When to use each:**
+- Cardinal: doors, corridors, fights, flee, any critical navigation
+- Diagonal: open room exploration (5+ adjacent open tiles), item collection in corners
+- Running (capital): default for general movement — passes through doors naturally
+
+## Interest Model (static — for reference, prefer context-dependent above)
 - Unvisited: 8.0 (mystery — what's there?)
 - Door: +5.0 (gateway to unknown territory)
 - Stairs: +10.0 (gateway to deeper levels)
@@ -103,7 +172,29 @@ def _tile_interest(self, x, y, screen):
     return score
 ```
 
-## Rogue-Specific Learnings
+## Door-Through Fix (BREAKTHROUGH — April 15)
+The agent reaches a door and can't walk through it. Root cause: agent treats doors as destinations (walk TO), not operations (walk THROUGH).
+
+**Fix:** When agent position is ON a door tile, don't pick a new goal. Keep walking in the same direction. The door is a passage, not a room.
+
+```python
+# In _decide(), BEFORE goal selection:
+if (px,py) in screen.doors:
+    # Walk toward adjacent corridor or unvisited floor
+    for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)]:
+        tx, ty = px+dx, py+dy
+        if (tx,ty) in screen.corridors or (tx,ty) not in self.visited:
+            return run_direction(dx, dy)  # capital = run in Rogue
+    # No corridor visible — keep walking
+    return random.choice(['L','H','J','K'])
+```
+
+**Why it works:** In Rogue, doors are wall tiles (`+` in a row of `-`). The player walks FROM floor THROUGH door TO corridor in one step. The agent was reaching the door and immediately picking a new goal, turning around. The fix forces the agent to keep walking past the door into the corridor.
+
+**Three thresholds identified:**
+1. Door traversal (solved — this fix)
+2. Screen boundary (known-map memory across captures)
+3. Interest weighting (doors should dominate score — they're the only exit)
 
 ### Terminal Layout
 - 80×24 (VT100 standard)
@@ -171,6 +262,24 @@ Persist `~/.rogue_memory.json` with runs, max_depth, deaths. Agent carries conce
 ## Room Exhaustion
 
 70%+ nearby tiles visited → force door/corridor exit.
+
+## BFS with Interest Scoring — Screen Context Required
+
+The BFS pathfinding must receive the current screen for two reasons:
+1. Wall detection: check `screen.walls` AND `self.known_walls` (known_walls is empty on first turn)
+2. Interest scoring: `_interest()` needs context (in_corridor, hp, items) from the screen
+
+```python
+# Pass screen to _pathfind
+step = self._pathfind(s.pos, goal, passable, s)
+
+# In _pathfind, pass screen to _interest
+sc = self._interest(cx, cy, s)  # NOT None
+
+# In _interest, check both wall sources
+if (x,y) in self.known_walls: return -999
+if screen and (x,y) in screen.walls: return -999  # current screen walls
+```
 
 ## Pitfalls
 
