@@ -440,6 +440,11 @@ Required when embedding multiple sketches on one page or integrating with framew
 - `push()`/`pop()` around every transform — matrix stack overflows silently
 - `texture()` before `rect()`/`plane()` — not after
 - Custom shaders: `createShader(vert, frag)` — test on multiple browsers
+- **`drawingContext` is a WebGL context in WEBGL mode, NOT a 2D canvas context.** `drawingContext.drawImage()` fails silently — it's a WebGLRenderingContext, not CanvasRenderingContext2D. This kills any feedback loop approach that tries to copy/paste frame data via `drawImage()`. For feedback loops in WEBGL: use `createFramebuffer()` for double-buffered rendering, or switch to P2D mode for 2D compositing. Verified blank-screen on Firefox, Chrome, and qutebrowser (Apr 2026).
+- **Shader compilation failures are silent** — if the canvas is blank black with WEBGL + custom shaders, the shader likely failed to compile. Check browser console (F12) for GLSL errors. Common causes: `rect()` for full-screen quad in WEBGL mode needs correct vertex shader with `aPosition`/`aTexCoord` attributes and proper matrix transforms.
+- **Feedback loops don't work via `drawingContext.drawImage()`** — In WEBGL mode, the canvas context is WebGL, not 2D. `drawingContext.drawImage(canvas, ...)` will fail silently. Use `createFramebuffer()` for multi-pass rendering instead (see Framebuffers section below).
+- **Multi-pass rendering pattern** — For bloom/glow/feedback effects, use p5's `createFramebuffer()`: render scene to FBO, apply shader passes to FBO textures, composite. Do NOT mix P2D `createGraphics()` with WEBGL rendering.
+- **Filter shaders via `createFilterShader()`** — simpler than full shader pipeline. Only needs fragment shader; automatically receives canvas as `tex0` texture. Use for post-processing: blur, bloom, color grading.
 
 ### Export — Key Bindings Convention
 

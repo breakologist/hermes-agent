@@ -216,6 +216,40 @@ updatePixels();
 
 Step=2 gives 4x speedup. Step=3 gives 9x. Visible at 1080p but acceptable for video (motion hides it).
 
+## WebGL Shader Debugging
+
+### Silent Shader Compilation Failures
+
+p5.js does NOT surface shader compilation errors well. If your shader has a syntax error, type mismatch, or unsupported GLSL feature, the canvas renders blank (black) with no console error.
+
+**Debugging strategy:**
+1. **Start simple** — get a trivial shader working first (just output red). Add complexity one line at a time.
+2. **Check the browser console** — some browsers log shader errors, but inconsistently.
+3. **Test in multiple browsers** — Chrome, Firefox, Safari have different GLSL compilers.
+4. **Always declare `precision mediump float;`** — Safari requires it.
+5. **Check attribute/varying names** — p5.js uses `aPosition`, `aTexCoord`, `vTexCoord`. Wrong names silently break.
+
+### WEBGL + P2D Buffer Incompatibility
+
+`createGraphics(w, h)` creates a P2D (2D canvas) buffer. You CANNOT draw a WEBGL canvas onto a P2D buffer using `drawingContext.drawImage()` — the contexts are incompatible. Feedback loops that try this silently fail.
+
+**Solutions:**
+- Use `createFramebuffer()` instead of `createGraphics()` for WEBGL multi-pass
+- Or: do feedback entirely in a fragment shader with ping-pong framebuffers
+
+### Full-Screen Quad in WEBGL
+
+```javascript
+// WRONG: rect() in WEBGL doesn't fill the viewport
+shader(myShader);
+rect(0, 0, width, height);
+
+// RIGHT: translate to top-left first
+shader(myShader);
+translate(-width/2, -height/2);
+rect(0, 0, width, height);
+```
+
 ## Common Mistakes
 
 ### 1. Forgetting to reset blend mode
