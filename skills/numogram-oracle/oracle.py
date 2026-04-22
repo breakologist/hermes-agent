@@ -12,6 +12,8 @@ Usage:
   python3 oracle.py --earthquake  (fetches seed from latest USGS quake)
   python3 oracle.py --hardware  (fetches seed from machine entropy)
   python3 oracle.py --iching  (I Ching hexagram from hardware entropy)
+  python3 oracle.py --taixuan  (T'ai Hsuan two-tetragram oracle from hardware)
+  python3 oracle.py --taixuan --voice  (with zone sound generation)
   python3 oracle.py --iching --seed 192855  (I Ching from a specific seed)
 """
 
@@ -83,6 +85,34 @@ def digital_root(n):
     while n >= 10:
         n = sum(int(d) for d in str(n))
     return n
+
+
+# --- TAIXUAN CHING HELPERS ---
+def taixuan_zone(n: int) -> int:
+    """Map tetragram index (0–80) to zone via digital root."""
+    return digital_root(n) or 9
+
+def two_taixuan_zones(seed: int) -> tuple[int, int]:
+    """Derive two tetragram indices from a seed using SHA‑256."""
+    import hashlib
+    data = hashlib.sha256(str(seed).encode()).digest()
+    a = int.from_bytes(data[:4], 'big') % 81
+    b = int.from_bytes(data[4:8], 'big') % 81
+    return a, b
+
+TAIXUAN_DEMON_MAP = {
+    (0,9): "Uttunul", (9,0): "Uttunul",
+    (1,8): "Murrumur", (8,1): "Murrumur",
+    (2,7): "Oddubb", (7,2): "Oddubb",
+    (3,6): "Djynxx", (6,3): "Djynxx",
+    (4,5): "Katak", (5,4): "Katak",
+}
+
+def demon_from_zones(a: int, b: int) -> str:
+    """Return carrier demon for the net‑span of two zones if they form a syzygy."""
+    return TAIXUAN_DEMON_MAP.get((a, b), "Unknown")
+
+# --- END TAIXUAN ---
 
 
 def derive_zone(seed):
@@ -270,8 +300,10 @@ if __name__ == "__main__":
     seed = None
     source = "manual"
     do_voice = False
+    if "--voice" in args:
+        do_voice = True
     
-    if "--seed" in args:
+    if "--seed" in args and "--taixuan" not in args:
         idx = args.index("--seed")
         seed = int(args[idx + 1])
         # If --iching also present, do I Ching from this seed instead
@@ -344,6 +376,54 @@ if __name__ == "__main__":
         print()
         print("══════════════════════════════════════")
         sys.exit(0)
+    elif "--taixuan" in args:
+        # Use seed if provided, else hardware entropy
+        if "--seed" in args:
+            idx = args.index("--seed")
+            seed_val = int(args[idx + 1])
+        else:
+            seed_val = fetch_hardware()
+        a_idx, b_idx = two_taixuan_zones(seed_val)
+        zone_a = taixuan_zone(a_idx)
+        zone_b = taixuan_zone(b_idx)
+        sy_a = get_syzygy(zone_a)
+        sy_b = get_syzygy(zone_b)
+        demon = demon_from_zones(zone_a, zone_b)
+        print("══════════════════════════════════════")
+        print("  T'AI XUAN CHING ORACLE")
+        print("══════════════════════════════════════")
+        print()
+        print(f"  Seed: {seed_val}")
+        print(f"  Tetragrams: {a_idx} (zone {zone_a}) and {b_idx} (zone {zone_b})")
+        print(f"  Syzygies: {zone_a}::{sy_a} and {zone_b}::{sy_b}")
+        if demon != "Unknown":
+            print(f"  Net-span demon: {demon}")
+        else:
+            print("  No direct syzygy — the pair traces a unique path through the Matrix.")
+        print()
+        # Voice generation if requested — use oracle_sentences.py for convolved voices
+        if "--voice" in args or do_voice:
+            print("  [Voice] Generating oracle sentences...")
+            zones = [str(zone_a), str(zone_b)]
+            # Call oracle_sentences.py for both zones
+            result = subprocess.run(
+                ["python3", os.path.expanduser("~/numogram-voices/oracle_sentences.py"), "--zones"] + zones,
+                capture_output=True, text=True
+            )
+            if result.returncode == 0:
+                # Print output lines that mention oracle_sentence files
+                for line in result.stdout.splitlines():
+                    if "oracle_sentence" in line and ".wav" in line:
+                        print(f"  [Voice] {line.strip()}")
+                if result.stderr:
+                    for line in result.stderr.splitlines():
+                        print(f"  [Voice] {line}")
+            else:
+                print(f"  [Voice] oracle_sentences.py failed (exit {result.returncode})")
+                if result.stderr:
+                    print(result.stderr[:500])
+        print("══════════════════════════════════════")
+        sys.exit(0)
     elif "--traverse" in args:
         seed = int(args[args.index("--traverse") + 1]) if "--traverse" in args and len(args) > args.index("--traverse") + 1 else 192855
         path = traverse(seed)
@@ -365,11 +445,9 @@ if __name__ == "__main__":
         print("  python3 oracle.py --hardware")
         print("  python3 oracle.py --iching")
         print("  python3 oracle.py --iching --seed 192855")
+        print("  python3 oracle.py --taixuan")
         print("  python3 oracle.py --traverse 192855")
         sys.exit(1)
-    
-    if "--voice" in args:
-        do_voice = True
     
     # Generate reading
     reading, zone = generate_reading(seed, source)
