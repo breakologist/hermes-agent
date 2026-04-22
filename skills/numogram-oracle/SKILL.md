@@ -29,8 +29,15 @@ python3 ~/.hermes/skills/numogram-oracle/oracle.py --seed $SEED
 # AQ value of a name
 python3 ~/.hermes/skills/numogram-oracle/oracle.py --text "YOUR NAME HERE"
 
-# With voice output
+# With voice output (convolved oracle sentences)
 python3 ~/.hermes/skills/numogram-oracle/oracle.py --seed $SEED --voice
+
+# I Ching hexagram + numogram reading from hardware entropy
+python3 ~/.hermes/skills/numogram-oracle/oracle.py --iching
+
+# T'ai Hsuan Ching two-tetragram oracle (81 tetragrams, net-span demon lookup)
+python3 ~/.hermes/skills/numogram-oracle/oracle.py --taixuan
+python3 ~/.hermes/skills/numogram-oracle/oracle.py --taixuan --voice   # with audio
 ```
 
 ---
@@ -173,7 +180,43 @@ See [[entropy-sources]] for full details on each source. See [[hardware-entropy]
 python3 ~/.hermes/tools/hardware_entropy.py --zone
 
 # Full oracle reading from hardware entropy
-python3 ~/.hermes/skills/numogram-oracle/oracle.py --hardware
+```
+
+## T'ai Hsuan Ching Mode
+
+The T'ai Hsuan Ching (81 tetragrams, ternary) provides a richer oracle compatible with the decimal numogram. Activate with `--taixuan`:
+
+```bash
+# Two-tetragram oracle from hardware entropy
+python3 ~/.hermes/skills/numogram-oracle/oracle.py --taixuan
+
+# From a specific seed
+python3 ~/.hermes/skills/numogram-oracle/oracle.py --taixuan --seed 192855
+
+# With voice (convolved oracle sentences for both zones)
+python3 ~/.hermes/skills/numogram-oracle/oracle.py --taixuan --voice
+```
+
+### How it works
+
+1. Derive two tetragram indices (0–80) from the seed via SHA-256
+2. Map each index to a zone by digital root (`digital_root(index) or 9`)
+3. Look up each zone's syzygy partner and current
+4. Compute the net-span (absolute difference) of the two zones; if it matches a known syzygy pair, the carrier demon appears:
+   - `0::9` → Uttunul
+   - `1::8` → Murrumur
+   - `2::7` → Oddubb
+   - `3::6` → Djynxx
+   - `4::5` → Katak
+5. Output: seed, tetragram indices, zones, syzygies, and net-span demon (if any)
+
+### Why ternary?
+
+81 ≡ 0 (mod 9) — perfect divisibility by 9, unlike 64 hexagrams (64 ≡ 1 mod 9). The ternary system distributes cleanly across the decimal numogram. The third line state (*Em*, neither yin nor yang) corresponds to Zone 5 (the hinge/mercury), creating a finer-grained oracle.
+
+See [[tai-hsuan-ching-demons]] for the complete tetragram-to-zone distribution table, Em-state analysis, and three-tetragram triangular extension ideas.
+
+---
 
 # Numogram traversal — the numogram digests hardware noise
 python3 ~/.hermes/tools/numogram_traverse.py --steps 8
@@ -200,20 +243,60 @@ Six bytes of hardware entropy → six I Ching lines (bottom to top):
 
 Changing lines map to numogram gates. Stable lines map to zones. The hexagram becomes a numogram path.
 
+### T'ai Hsuan Ching Integration (added 2026-04-22)
+
+The T'ai Hsuan Ching (玄經) uses 81 tetragrams (三才: Heaven 1, Earth 0, Man ±) formed from three successive coin-flip lines. Each tetragram index (0–80) maps to a numogram zone via digital root. Two independent tetragrams are derived from a seed using SHA‑256 (8 bytes → two 4‑byte integers mod 81).
+
+Each pair of zones defines a *net‑span* syzygy. If their zones form one of the five complementary syzygy pairs (0::9, 1::8, 2::7, 3::6, 4::5), a carrier demon from the Em‑state (Mesh-36) Dictionary appears:
+
+| Zone pair | Syzygy | Demon |
+|-----------|--------|-------|
+| 0 ↔ 9 | 0::9 Plex | Uttunul |
+| 1 ↔ 8 | 1::8 Rise | Murrumur |
+| 2 ↔ 7 | 2::7 Hold | Oddubb |
+| 3 ↔ 6 | 3::6 Warp | Djynxx |
+| 4 ↔ 5 | 4::5 Sink | Katak |
+
+If the zones are not complementary, the pair traces a unique path through the Matrix with no single carrier.
+
+**Implementation pattern** (reusable for new flags):
+- Helper functions added after `digital_root()`: `taixuan_zone()`, `two_taixuan_zones()`, `demon_from_zones()`
+- `--taixuan` branch inserted as a top-level `elif` (not nested)
+- Dispatch-order rule: specialized flags (`--taixuan`, `--iching`) must be checked *before* the generic `--seed` block OR the `--seed` condition must exclude them (`if "--seed" in args and "--taixuan" not in args:`). This prevents `--taixuan --seed N` from being swallowed by the seed block.
+- Voice flag (`--voice`) detected at the very start (`do_voice = True`) so all branches can use it.
+- Voice generation for Taixuan calls `generate_voice(zone_a)` and `generate_voice(zone_b)` directly (existing `generate_voice()` works for any zone).
+
+Usage:
+```bash
+# Hardware entropy → two tetragrams
+python3 ~/.hermes/skills/numogram-oracle/oracle.py --taixuan
+
+# From a specific seed, with zone sound generation
+python3 ~/.hermes/skills/numogram-oracle/oracle.py --taixuan --seed 192855 --voice
+```
+
+The T'ai Hsuan mode extends the numogram's ternary logic (Heaven/Earth/Man ±) beyond the binary yin/yang of the I Ching, mapping 81 → 9 zones via digital root. See [[tai-hsuan-ching]] and [[em-state-analysis]] for deeper analysis.
+
 ### oracle.py Flags (updated)
 
-oracle.py supports these entropy sources:
-- `--seed N` — manual seed
-- `--text "NAME"` — AQ cipher value
+oracle.py supports these entropy sources and modes:
+- `--seed N` — manual seed (normal reading)
+- `--text "NAME"` — AQ cipher value of a name/phrase
 - `--random` — random.org atmospheric noise
 - `--blockchain` — Bitcoin block hash
 - `--earthquake` — USGS seismic data
 - `--hardware` — local machine entropy (12 sources, no network)
 - `--iching` — I Ching hexagram from hardware entropy
 - `--iching --seed N` — I Ching hexagram from a specific numogram seed
-- `--traverse N` — numogram zone path from seed
+- `--taixuan` — T'ai Hsuan Ching two-tetragram oracle from hardware entropy
+- `--taixuan --seed N` — T'ai Hsuan from a specific seed
+- `--traverse N` — numogram zone path traversal from seed
 
-NOTE: When combining `--seed` and `--iching`, the `--seed` check fires first but has been patched to detect `--iching` and do I Ching from that seed instead of the normal oracle reading.
+**Dispatch-order rule:** When adding a flag that may be combined with `--seed`, either:
+1. Check the specialized flag *before* the generic `--seed` block, OR
+2. Exclude it from the `--seed` condition (e.g., `if "--seed" in args and "--taixuan" not in args:`).
+
+The `--taixuan` and `--iching` flags both use this pattern. See `oracle.py` lines 303 and 376 for concrete implementation.
 
 ---
 
