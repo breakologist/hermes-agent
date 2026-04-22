@@ -23,6 +23,14 @@ Parent: Numogram / Divination
   Quasiphonic labels, triangular gate button, AQ dictionary integration, multi-base support.
   Future: triangular syzygy animation, AQ text input, T'ai Hsuan mode in browser, audio playback.
 
+- [ ] [VISUALIZER-V7] Djynxxogram Base-36 Extension
+  The v7 visualizer adds 36-zone mode (full AQ alphabet). Next: populate zones 10-35 with names/demons, add Synx overlay toggle, rotational gate highlighting, BEGHILOS mode.
+  Parent: Numogram / Visualization
+
+- [ ] [GROK-ROTOR] Integrate AQ/Synx mining results
+  Grok conversation mined @xenocosmography and @doomcrypt for AQ values, checked ciphers.news Synx, explored rotational/strobogrammatic properties. Findings need to be merged into AQ dictionary, wiki pages on rotational symmetry, and potentially new oracle modes.
+  Parent: Numogram / AQ Dictionary
+
 - [ ] [TREE-GEN] Tree-Based Dungeon Generation — Brogue Method
 Accretion from start room, tree edges (single corridor per parent-child), loops added after tree, stairs at deepest leaf.
 Design: tree-dungeon-generation.md. Council confirmed across 3 temperature modes.
