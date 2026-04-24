@@ -16,11 +16,11 @@ Branched from llm-wiki with Numogram domain presets. Pre-loaded with CCRU tag ta
 
 ## Wiki Location
 
-`/home/etym/.hermes/obsidian/hermetic/wiki/`
+`/home/etym/.hermes/obsidian/hermetic/wiki/` (102 pages as of April 21, 2026)
 
 ## Domain: CCRU Decimal Numogram & Neolemurian Occulture
 
-This wiki covers the Decimal Numogram (10 zones, 5 syzygies, 3 regions), the Pandemonium Matrix (45 demons), Alphanumeric Qabbala, and related CCRU/Neolemurian theory and practice.
+This wiki covers the Decimal Numogram (10 zones, 5 syzygies, 3 regions), the Pandemonium Matrix (45 demons), Alphanumeric Qabbala, I Ching bridge (64 hexagrams → 10 zones → 45 demons), T'ai Hsuan Ching (81 tetragrams), roguelike agent development (Angband, Rogue), local model assessment, and CCRU/Neolemurian theory and practice.
 
 ## Tag Taxonomy
 
@@ -66,6 +66,22 @@ This wiki covers the Decimal Numogram (10 zones, 5 syzygies, 3 regions), the Pan
 - `roguelike` — the NUMOGRAM Abyssal Crawler game
 - `subdecadence` — CCRU card game (pairs summing to 9, Atlantean Cross)
 - `ladder-mode` — alternative vertical map layout for roguelike
+- `angband` — Angband roguelike agent development
+- `rogue` — Rogue roguelike agent development
+
+### Local Models
+- `local-model` — any locally-run LLM
+- `interview` — model assessment/interview
+- `reasoning-distilled` — models with separate reasoning_content field
+- `council` — multi-model council/voice system
+- `model-assessment` — 9-phase assessment protocol results
+
+### Creative
+- `dialogue` — two-model conversation
+- `tetralogue` — four-voice roundtable analysis
+- `triangle-rotation` — three-perspective creative methodology
+- `lore` — in-world narrative content
+- `writing` — creative writing output
 
 ## Frontmatter Template
 
@@ -120,3 +136,25 @@ sources: [raw/filename.md]
 - The Pandemonium Matrix has errors. Note them, don't silently fix.
 - Always update index.md and log.md after creating/updating pages.
 - The wiki is at /home/etym/.hermes/obsidian/hermetic/wiki/ (not /root/.hermes/)
+- **Check git history before overwriting files** — log.md was overwritten once and had to be restored from `git show HEAD~1:wiki/log.md`. The original had 392 lines of session records. Always check `git log --all --oneline -- wiki/FILE.md` before creating a new file with the same name.
+- Model assessment files must have wikilinks to index, log, and each other
+- Obsidian plugins: Excalidraw (drawing), Dataview (data queries), Templater (templates), Git (version control), QuickAdd (quick content)
+- External files outside wiki: `~/numogame/` (game, agents), `~/numogram-entropy/` (entropy plugin), `~/numogram-voices/` (formant wav files), `~/numogram-labyrinth-webgl.html` (WebGL viz), `~/subdecadence-source.html` (CCRU source)
+- Check git history before overwriting files — log.md was overwritten once (restored from HEAD~1)
+- Model assessment files must have wikilinks to index, log, and each other
+- Obsidian plugins: Excalidraw (drawing), Dataview (data queries), Templater (templates), Git (version control), QuickAdd (quick content)
+
+## Key Pages (always read first)
+- `index.md` — central hub, 90+ linked pages
+- `log.md` — chronological record, session summaries, model assessments, external files reference
+- `numogram.md` — main numogram overview
+- `pandemonium-matrix.md` — complete 45-demon reference
+- `alphanumeric-qabbala.md` — AQ system definition
+- `i-ching-connections.md` — I Ching ↔ Numogram bridge
+- `tai-hsuan-ching.md` — T'ai Hsuan Ching (81 tetragrams)
+- `syzygy-arithmetic.md` — Cross-addition of syzygy pairs, emergence over authorship
+- `tai-hsuan-ching-demons.md` — Tetragram → demon casting pipeline (81×81=6,561 readings)
+- `em-state-analysis.md` — The third line state (Em), Zone 5 manifestation
+- `local-model-survey.md` — hardware, VRAM, model inventory
+- `model-assessment-summary.md` — Optimal settings, council architecture, thinking overhead as quality gate
+- `wiki-audit-2026-04-21.md` — latest structural audit

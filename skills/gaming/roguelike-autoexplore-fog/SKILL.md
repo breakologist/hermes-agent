@@ -113,6 +113,70 @@ Headless reads line-by-line. `'p'` without `\n` never processed. Agent reads sta
 ### BFS oscillation on walls
 `?` tile might be a wall. Agent walks toward it, can't enter, BFS retargets same tile. Fix: blacklist unreachable targets, clear at 200 entries.
 
+### Wall inference when fog hides walls (Critical)
+When `update_explored()` only marks **passable** tiles, walls remain `?` forever. BFS constantly targets these unreachable `?` tiles and the agent oscillates. The fix: infer walls from movement failure.
+
+```python
+# In agent state:
+self.wall_map = set()        # Proven walls (targeted but move failed)
+self.failed_dirs = {}        # (x,y) -> set of dirs that failed from here
+
+# After each move:
+if old_pos == new_pos:
+    # Movement failed — target tile is a wall (or demon)
+    tx, ty = old_pos[0] + dx, old_pos[1] + dy
+    self.wall_map.add((tx, ty))
+    self.failed_dirs.setdefault(old_pos, set()).add(move)
+```
+
+BFS must skip `wall_map` tiles entirely. This is more precise than blacklisting because it marks the **obstacle**, not the **target**, preventing re-entry from any direction.
+
+### Oscillation detection in dead ends
+Without wall information, the agent bounces between two corridor tiles targeting unreachable `?` walls on either side. `stuck_count` resets every successful move, so escape mode rarely fires.
+
+Fix: track recent positions and detect tight loops:
+
+```python
+from collections import deque
+
+self.recent_positions = deque(maxlen=10)
+
+# After each move:
+self.recent_positions.append(new_pos)
+
+# Check for oscillation:
+if len(self.recent_positions) >= 10:
+    unique = len(set(self.recent_positions))
+    if unique <= 3:
+        # Agent is bouncing between 2-3 tiles — force deviation
+        self.stuck_count = max(self.stuck_count, 3)
+```
+
+Fire this BEFORE the normal stuck check so the agent breaks out of dead-end oscillation early.
+
+### State dump border artifacts
+If the explored map dump wraps rows in `!---!` borders, the parser may include the border line `!--------------!` as a map row, offsetting all coordinates.
+
+Fix: filter out lines that start with `!` followed by dashes:
+```python
+rows = [line for line in raw.split('\n')
+        if not line.strip().startswith('!-')]
+```
+
+### Aggressive blacklist exhausts targets
+Auto-blacklisting every target after one look exhausts all nearby tiles within a few turns. The agent has nothing to explore and freezes.
+
+Fix: only blacklist tiles that are PROVEN unreachable (via wall_map). Never blacklist passable tiles or tiles the agent simply hasn't reached yet.
+
+### Diagonal fallbacks on cardinal-only engines
+If the game engine only supports cardinal movement (`w/a/s/d`), diagonal fallbacks (`n`, `b`, `u`, `y`) silently fail or move in unexpected directions. This doubles the failure rate in recovery handlers.
+
+Fix: restrict all fallback movement to the same keyset the engine accepts:
+```python
+MOVES = {'w': (0,-1), 'a': (-1,0), 's': (0,1), 'd': (1,0)}
+# Never include diagonals in fallback or random recovery
+```
+
 ### Gate-first priority pulls toward walls
 Gates from FULL MAP might be behind walls. Agent walks toward unreachable gate for 300 turns. Fix: gate direction as FALLBACK, not primary. Auto-explore interest scoring already prioritizes gates.
 
@@ -130,5 +194,9 @@ User changed name with 'n' key but cult.json showed "crawler". Save read env var
 - State dump and curses display are separate renderers — fog needs both
 - `getattr(game_map, 'attr', fallback)` when game has multiple map classes
 - Headless stdin is line-buffered — every command needs `\n`
-- BFS on unexplored tiles can target walls — blacklist or verify passability
+- BFS on unexplored tiles can target walls — **infer walls from failed moves, don't just blacklist**
 - `ZONE_LOS_RADIUS` is a class attribute on DungeonMap — NumogramMap needs getattr fallback
+- **Wall inference is essential when fog never reveals walls** — without it the agent oscillates forever
+- **Oscillation detection needs position history**, not just stuck_count — stuck_count resets on every successful move even when bouncing
+- **State dump borders** (`!---!`) must be stripped before parsing coordinates
+- **Match fallback keys to engine capabilities** — diagonals on a cardinal-only engine create ghost failures

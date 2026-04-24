@@ -70,6 +70,43 @@ When building a series (e.g., 10 sketches for 10 zones), iterate deliberately:
 
 The variation across the series matters more than any individual sketch. A series of 10 sketches all at 180 chars feels monotonous. A series ranging from 161 to 275 chars feels alive.
 
+### v3: Conceptual Rotation (Different Take on Each)
+
+After v1 (basic) and v2 (refined), v3 changes the *conceptual angle* on each zone. Not just more/less complex — a fundamentally different metaphor:
+
+| Zone | v1/v2 concept | v3 concept |
+|------|--------------|------------|
+| 0 Void | Many orbiting points | Single point that occasionally jumps to random pos then returns |
+| 1 Stability | Grid breathing | Waves rippling outward from center across the lattice |
+| 3 Triangle | Spiral vortex | Three rotating triangles (geometric, not particle) |
+| 4 Catastrophe | Displaced grid | Four corners connected by pulsing lines (gate opens/closes) |
+| 7 Blood | Organic pulse | Grid points bisected by sweeping diagonal (growing on one side) |
+
+The v3 should feel like a *third voice* — not louder or quieter, but speaking about the same thing from a different angle entirely. Each sketch's concept should be something you couldn't reach by iterating on v2.
+
+### v4: Paradigm Shift (Different Lens Entirely)
+
+The fourth pass abandons the previous visual vocabulary entirely. Where v1-v3 share a particle/geometry language, v4 introduces a completely different representational system. Example: signal topology (modular synthesis waveforms as zone metaphors) replacing particle systems.
+
+**Implementation pattern (learned from numogram-tsubuyaki v4 production):**
+1. Extract zone metadata from prior passes (names, regions, hex colors) via regex on the HTML files — e.g. `const ZONES = \[{id:\s*0,\s*name:\s*"Void"` — instead of re‑typing by hand.
+2. Choose a foreign ontology (e.g., synthesis signal processing) whose primitives (sine, square, wavefold, LFO) map homomorphically onto the domain's dynamics.
+3. Build the mapping table explicitly (zone → waveform → numogram rationale) before writing any code.
+4. Generate the HTML gallery, then validate bracket/paren balance programmatically (`Open/Close` count) before committing.
+5. Render compressed code strings for display; use expanded `draw(p)` functions for execution.
+
+| Zone | v3 concept | v4 concept (signal topology) |
+|------|-----------|------------------------------|
+| 0 Void | Jumping pixel | Noise floor — random voltage |
+| 2 Separation | Dual orbits | Hard sync — two oscillators detuning |
+| 4 Catastrophe | Pulsing gate | Wavefolding — sine peaks folding into harmonics |
+| 7 Blood | Sweeping cut | Pulse wave — LFO-gated rhythmic threshold |
+| 9 Iron Core | Converging spiral | Feedback resonance — self-oscillation building |
+
+v4 is not "more complex" or "a different angle." It is a different *ontology*. The same ten zones, mapped through a foreign system. This is the deepest iteration because it reveals structural homologies: the numogram's Separation is isomorphic to oscillator hard-sync detune; its Pressure is isomorphic to audio compression limiting.
+
+**Rule:** Before proposing v4, read v1-v3 carefully. The fourth voice must be genuinely foreign to the first three. If it could have emerged from iterating v2, it is v3, not v4.
+
 ### Complexity Decision Framework
 
 For each sketch in v2, ask:
@@ -100,6 +137,25 @@ new p5((p) => {
 ```
 
 Key: display the compressed code (for reading), run the expanded code (for reliability). The tsubuyaki string is the artifact. The expanded function is the renderer.
+
+### Gallery + Wiki Dual Publishing
+
+Long tsubuyaki strings (200+ chars) clip in HTML card layouts due to `overflow: hidden` and unbreakable code. The HTML gallery is for live visual experience; the wiki is for canonical code reference.
+
+**Workflow:**
+1. Build the HTML gallery as the primary artifact (`~/projectname.html`)
+2. Create/update a wiki page with all code blocks in markdown fenced code (` ``` `)
+3. Cross-link: gallery points to wiki for "full code reference," wiki points to gallery for "live version"
+4. For series (v1, v2, v3, v4), keep all versions in the wiki, only the latest in the active gallery unless the user requests otherwise
+
+**Pitfall:** Do not rely on CSS `overflow-x: auto` on `<pre>` blocks inside card containers with `overflow: hidden`. The card boundary clips before the pre scroll activates. Either remove card `overflow: hidden` (breaks rounded corners) or accept that the wiki is the code reference.
+
+**File naming convention:**
+- `~/projectname.html` — v1
+- `~/projectname-v2.html` — v2
+- `~/projectname-v3.html` — v3
+- `~/projectname-v4.html` — v4
+- Wiki: `wiki/projectname-museum.md` — all versions with full code blocks
 
 ## Character Count Verification
 

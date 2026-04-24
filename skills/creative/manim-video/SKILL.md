@@ -188,11 +188,20 @@ manim -ql --format=png -s script.py Scene2_CoreConcept  # preview still
 
 ## Critical Implementation Notes
 
+### Color Interpolation (Manim CE v0.20+)
+Don't use `from colour import Color` — it's not always installed. Use ManimColor directly:
+```python
+# WRONG: interpolate_color("#0A0A0A", "#39FF14", 0.5)  # string args fail
+# WRONG: interpolate_color(Color("#0A0A0A"), Color("#39FF14"), 0.5)  # needs colour lib
+# RIGHT:
+ManimColor("#0A0A0A").interpolate(ManimColor("#39FF14"), 0.5)
+```
+
 ### Raw Strings for LaTeX
 ```python
-# WRONG: MathTex("\frac{1}{2}")
+# WRONG: MathTex("\\frac{1}{2}")
 # RIGHT:
-MathTex(r"\frac{1}{2}")
+MathTex(r"\\frac{1}{2}")
 ```
 
 ### buff >= 0.5 for Edge Text

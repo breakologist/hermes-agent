@@ -182,3 +182,13 @@ After tree generation + stair targeting + anti-oscillation: agents need the tree
 **Human vs agent on hw-entropy maps:** Human reaches 100% hyp across 9 zones. Agent gets stuck in Zone 0. The gap is spatial reasoning — human reads map holistically, agent reads tiles individually. Tree-based generation narrows this gap.
 
 **Council validated tree approach:** The numogram-council confirmed DFS accretion + single corridor per edge + loops after tree as the best approach (3 slots + judge synthesis).
+
+## Session April 23 Updates
+
+**Fallback random placement:** When accretion fails (all 4 directions blocked), fall back to random placement with nearest-room parent attachment. Prevents infinite loops on tight floors.
+
+**Loop heuristic:** `num_loops = max(1, len(rooms) // 4)` provides enough loops for interesting navigation without breaking tree structure. Verified across all 10 floor configs.
+
+**Accretion bounds check:** Always verify `1 <= x and x + w < width - 1` before accepting a room. Prevents rooms pushed against the map edge.
+
+**All-rooms-connected invariant:** After generation, every room must appear in the tree edge set (either as parent or child, or as the root). Verified in unit tests.

@@ -225,7 +225,7 @@ def council_decide(question, context=None, mode_override=None):
     logger.info(f"Council phase 1: {len(succeeded)}/{len(answers)} in {council_time:.1f}s")
 
     if not succeeded:
-        return {"status": "all_failed", "error": "All council members failed", "answers": answers}
+        return json.dumps({"status": "all_failed", "error": "All council members failed", "answers": answers})
 
     # Phase 2: Judge synthesizes
     judge_prompt = _build_judge_prompt(question, context, succeeded)
@@ -249,7 +249,7 @@ def council_decide(question, context=None, mode_override=None):
         synthesis = max(succeeded, key=lambda r: len(r.get("answer", "")))["answer"]
         logger.warning("  Judge failed, returning longest member answer")
 
-    return {
+    return json.dumps({
         "status": "success",
         "answer": synthesis,
         "individual_answers": {a["name"]: a["answer"] for a in succeeded},
@@ -258,7 +258,7 @@ def council_decide(question, context=None, mode_override=None):
         "council_time": council_time,
         "judge_time": judge_time,
         "mode": mode_override or "per-slot",
-    }
+    })
 
 
 # =====================================================================
@@ -294,3 +294,10 @@ SCHEMA = {
         "required": ["question"],
     },
 }
+def register(ctx):
+    ctx.register_tool(
+        name="council_decide",
+        toolset="numogram_council",
+        schema=SCHEMA,
+        handler=council_decide,
+    )

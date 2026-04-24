@@ -185,6 +185,115 @@ class SpiralGeneration(Scene):
         self.wait(2.0)
 ```
 
+## Template: Entropy-Driven Zone Digestion
+
+```python
+from manim import *
+import random
+import hashlib
+
+def digital_root(n):
+    """Reduce to single digit."""
+    while n >= 10:
+        n = sum(int(d) for d in str(n))
+    return n
+
+def entropy_to_zones(seed_bytes: bytes, count: int = 20):
+    """Digest entropy bytes into a sequence of numogram zones."""
+    zones = []
+    current = 0
+    for i in range(count):
+        if i < len(seed_bytes):
+            val = seed_bytes[i]
+        else:
+            val = int(hashlib.sha256(seed_bytes + bytes([i])).hexdigest()[:2], 16)
+        current = (current + val) % 100
+        zone = digital_root(current)
+        zones.append(zone)
+    return zones
+
+def get_syzygy(zone):
+    """Return the syzygy partner (sums to 9)."""
+    return 9 - zone
+
+# Full zone positions — Time-Circuit + Warp + Plex
+import math
+ZONE_POSITIONS = {}
+_radius = 2.2
+_circuit = [1, 8, 2, 7, 5, 4]  # Time-Circuit path
+for i, z in enumerate(_circuit):
+    angle = PI/2 + i * (2*PI/len(_circuit))
+    ZONE_POSITIONS[z] = [_radius * math.cos(angle), _radius * math.sin(angle), 0]
+ZONE_POSITIONS[3] = [0, 3.2, 0]       # Warp
+ZONE_POSITIONS[6] = [1.2, 3.5, 0]     # Warp
+ZONE_POSITIONS[0] = [0, -3.2, 0]      # Plex
+ZONE_POSITIONS[9] = [0, -2.0, 0]      # Plex
+
+class EntropyDigestion(Scene):
+    """The numogram digests raw entropy. Zone traversal with syzygy flashes."""
+    def construct(self):
+        self.camera.background_color = BG
+        # Generate entropy and zone sequence
+        random.seed(0x666)
+        entropy_bytes = bytes([random.randint(0, 255) for _ in range(64)])
+        zone_sequence = entropy_to_zones(entropy_bytes, 24)
+        # Build zone map, traverse sequence, flash syzygies, draw traversal lines
+        # See /home/etym/numogame/numogram_entropy_digestion.py for full implementation
+```
+
+## Template: Entropy Spiral
+
+```python
+class ZoneSpiral(Scene):
+    """Archimedean spiral colored by zone, syzygy completions pulse gold."""
+    def construct(self):
+        self.camera.background_color = BG
+        random.seed(0x333)
+        entropy_bytes = bytes([random.randint(0, 255) for _ in range(128)])
+        zones = entropy_to_zones(entropy_bytes, 100)
+        points = []
+        for t in range(len(zones)):
+            angle = t * 0.2
+            r = 0.3 + t * 0.015
+            points.append([r * math.cos(angle), r * math.sin(angle), 0])
+        for i in range(1, len(points)):
+            zone = zones[i]
+            color = ZONE_COLORS[zone]
+            segment = Line(points[i-1], points[i], color=color,
+                          stroke_width=2 + (i/len(points)) * 2)
+            self.play(Create(segment), run_time=0.05)
+            # Pulse at syzygy completions
+            if i > 0 and zones[i] + zones[i-1] == 9:
+                pulse = Dot(points[i], color=GOLD, radius=0.08)
+                self.play(FadeIn(pulse, scale=2), FadeOut(pulse), run_time=0.1)
+        self.wait(2.0)
+```
+
+## Template: Entropy-Driven Zone Traversal
+
+```python
+# Uses /dev/urandom or numogram-entropy plugin for real entropy
+# Each render is unique and unrepeatable
+def entropy_to_zones(seed_bytes, count=20):
+    zones = []
+    current = 0
+    for i in range(count):
+        if i < len(seed_bytes):
+            val = seed_bytes[i]
+        else:
+            val = int(hashlib.sha256(seed_bytes + bytes([i])).hexdigest()[:2], 16)
+        current = (current + val) % 100
+        zone = digital_root(current)
+        zones.append(zone)
+    return zones
+
+# In construct():
+with open("/dev/urandom", "rb") as f:
+    entropy_bytes = f.read(64)
+zones = entropy_to_zones(entropy_bytes, 24)
+# Animate zones lighting up, syzygy partners flashing, traversal lines
+```
+
 ## Pitfalls
 
 - Always use `from math import cos, sin` — Manim doesn't import them
@@ -193,3 +302,9 @@ class SpiralGeneration(Scene):
 - Use `MONO = "monospace"` font — proportional fonts break in Manim
 - `self.wait()` after every animation — viewers need absorption time
 - Neon tech palette only — other palettes break the aesthetic
+- **Manim v0.20.1 color API**: `from colour import Color` module NOT needed. Use `ManimColor(hex).interpolate(ManimColor(hex), alpha)` for color interpolation. The old `interpolate_color(str, str, alpha)` fails because ManimColor expects objects, not strings.
+- **/dev/urandom for entropy**: Each render is a unique unrepeatable event. Use for "real" numogram digestion. `random.seed(N)` for reproducible test renders.
+- **numogram-entropy plugin**: Has `get_seed()`, `get_zone()`, `traverse()`, `iching()` — but NOT `aggregate()`. Use `get_seed()` to get raw entropy bytes.
+- **Python output buffering**: `manim` output may not stream in real-time via terminal tool. Use `python3 -u` or check files after render completes.
+- **Manim v0.20.1 color interpolation**: `interpolate_color()` requires ManimColor objects, not strings. Use `ManimColor(hex1).interpolate(ManimColor(hex2), alpha)` instead of `interpolate_color(hex1, hex2, alpha)`. The `from colour import Color` import is NOT needed and will fail (module not in venv).
+- Render command: `manim -ql --format mp4 file.py SceneName` (use `-qh` for 720p60, `-qk` for 4K)

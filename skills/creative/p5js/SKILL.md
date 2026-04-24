@@ -459,6 +459,40 @@ function keyPressed() {
 }
 ```
 
+### HTML Input Fields + p5.js Keyboard Handlers
+
+When a sketch includes HTML `<input>` or `<textarea>` elements (e.g., for text entry, seed input, parameter fields), p5.js `keyPressed()` fires globally — **it does not respect input field focus**. Typing 'r' in a text box triggers the `keyPressed()` handler, causing unexpected randomization, pausing, or other side effects.
+
+**Fix**: Guard all keyboard shortcuts by checking `document.activeElement`:
+
+```javascript
+function keyPressed() {
+  // Skip shortcuts when user is typing in an input field
+  let active = document.activeElement;
+  if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+    return;
+  }
+
+  if (key === 'r' || key === 'R') newRandom();
+  if (key === ' ') { togglePause(); return false; }
+  // ... other shortcuts
+}
+```
+
+**Related pitfall**: When a button click (e.g., "SET") computes a new value from an input field, update the source field explicitly before triggering redraws. p5.js state and DOM state can diverge:
+
+```javascript
+function setZoneFromText() {
+  let text = document.getElementById('aqInput').value;
+  let val = computeValue(text);
+  seed = val;
+  document.getElementById('seedInput').value = val;  // sync DOM → p5 reads this
+  background(5,5,5); particles = []; initParticles();
+}
+```
+
+**Script placement**: When injecting JavaScript blocks into an existing HTML file, ensure they are wrapped in `<script>...</script>` tags and placed correctly relative to `<!DOCTYPE html>`. Raw JS before the doctype renders as visible text in the browser.
+
 ### Headless Video Export — Use noLoop()
 
 For headless rendering via Puppeteer, the sketch **must** use `noLoop()` in setup. Without it, p5's draw loop runs freely while screenshots are slow — the sketch races ahead and you get skipped/duplicate frames.

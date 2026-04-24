@@ -103,6 +103,75 @@ def is_triangular(n):
 # T(8)=36->9 (Gt-36), T(9)=45->9 (Gt-45), T(36)=666->9 (Plex)
 ```
 
+## Ciphers
+
+### Alphanumeric Qabbala (AQ)
+
+Base-36 ordinal: digits 0-9 face value, A=10, B=11, ..., Z=35.
+Range: 0-35 (raw sum), zone = digital root mod 10 (except 0→0, 9→9).
+
+```python
+ALPHANUM_AQ = list(range(36))  # 0,1,2,...,35 mapped to chars 0-9,A-Z
+```
+
+### Synx
+
+Accelerating CCRU progression. Range 0-35, same character set as AQ but with nonlinear jumps.
+Source: `lumpenspace/ccru/gematria/plugin/src/ciphers.ts` (qliphoth.systems).
+
+```python
+ALPHANUM_SYNX = [
+    1, 2, 3, 4, 5, 6, 7, 9, 10, 12,   # 0-9
+    14, 15, 18, 20, 21, 28, 30, 35, 36, 42,   # A-J
+    45, 60, 63, 70, 84, 90, 105, 126, 140, 180,   # K-T
+    210, 252, 315, 420, 630, 1260                 # U-Z
+]
+# Mapping: '0'→1, '1'→2, ..., '9'→12, 'A'→14, 'B'→15, 'C'→18,
+# 'D'→20, 'E'→21, 'F'→28, 'G'→30, 'H'→35, 'I'→36, 'J'→42,
+# 'K'→45, 'L'→60, 'M'→63, 'N'→70, 'O'→84, 'P'→90, 'Q'→105,
+# 'R'→126, 'S'→140, 'T'→180, 'U'→210, 'V'→252, 'W'→315,
+# 'X'→420, 'Y'→630, 'Z'→1260
+```
+
+**Compute Synx:**
+```python
+SYNX_MAP = {}
+digits = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+for i, ch in enumerate(digits):
+    SYNX_MAP[ch] = ALPHANUM_SYNX[i]
+    SYNX_MAP[ch.lower()] = ALPHANUM_SYNX[i]
+
+def synx_value(text):
+    return sum(SYNX_MAP.get(c, 0) for c in text)
+```
+
+**Zone mapping** (since Synx values can be large): use `synx_value(s) % 10` for decimal zone, or `digital_root(synx_value(s)) % 10`.
+
+**Cross-cipher resonance:** When a phrase scores notably in both AQ and Synx (e.g., True Faith=AQ189/Synx820, Angelic Materialism=AQ333/Synx1192/1237/1901), treat it as doubly charged — the gate opens in two systems simultaneously.
+
+### Other Ciphers (qliphoth.systems)
+- **Numeric QWERTY (NQ)**: 0-35, keyboard order (1234567890 + qwertyuiopasdfghjkl)
+- **QWERTY (QW)**: 1-26, alphabet mapped to top keyboard row
+- **Alphanumeric Satanic**: 0-61, case-sensitive extension
+- **ALPHANUM_PRIMES**: 1-149, first 36 primes mapped to alphanum
+
+### Extraction Workflow (Synx from Source)
+
+When you need the canonical Synx mapping and it's not documented elsewhere:
+
+1. Fetch the ciphers source from the qliphoth.systems GitHub:
+   ```bash
+   curl -s https://raw.githubusercontent.com/lumpenspace/ccru/main/gematria/plugin/src/ciphers.ts
+   ```
+
+2. Extract the `ALPHANUM_SYNX` array (order matches 0-9 then A-Z).
+
+3. Cross-check against `content-ciphers-news-synx.jpg` screenshot if available.
+
+This workflow was established during the v7 Djynxxogram Synx overlay implementation (2026-04-23) after discovering ciphers.news was 404 and the Synx table was only available via source code.
+- **Alphanumeric Satanic**: 0-61, case-sensitive extension
+- **ALPHANUM_PRIMES**: 1-149, first 36 primes mapped to alphanum
+
 ## Known AQ Values
 
 | Word | AQ | DR | Zone |

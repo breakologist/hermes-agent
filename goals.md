@@ -23,13 +23,19 @@ Parent: Numogram / Divination
   Quasiphonic labels, triangular gate button, AQ dictionary integration, multi-base support.
   Future: triangular syzygy animation, AQ text input, T'ai Hsuan mode in browser, audio playback.
 
-- [ ] [VISUALIZER-V7] Djynxxogram Base-36 Extension
-  The v7 visualizer adds 36-zone mode (full AQ alphabet). Next: populate zones 10-35 with names/demons, add Synx overlay toggle, rotational gate highlighting, BEGHILOS mode.
+- [x] [VISUALIZER-V7] Djynxxogram Base-36 Extension + Synx Overlay + Rotational Gates
+  v7 visualizer: 36-zone mode, Synx/Yxshh cipher toggle (cyan HSL 180,44,66), strobogrammatic/BEGHILOS gate highlighting.
+  Synx mapping from ciphers.news/calc/ciphers.js. Rotational detection: CCRU=69 is a self-mirror strobogrammatic gate.
+  Octave hypothesis for zones 10-35 documented (digital-root harmonics of base-10 zones).
+  oracle.py: `--synx` flag for dual-cipher readings.
+  Next: octave demon naming (630=45×14), Djynxxogram traversal export.
   Parent: Numogram / Visualization
 
-- [ ] [GROK-ROTOR] Integrate AQ/Synx mining results
-  Grok conversation mined @xenocosmography and @doomcrypt for AQ values, checked ciphers.news Synx, explored rotational/strobogrammatic properties. Findings need to be merged into AQ dictionary, wiki pages on rotational symmetry, and potentially new oracle modes.
-  Parent: Numogram / AQ Dictionary
+- [x] [GITHUB] Update repositories — Aq-Calc & warp-rl
+  https://github.com/breakologist/numogram — new monorepo (private)
+  Consolidates: cli (oracle + calculator), game (roguelike + agents), entropy (pip plugin), voices (formant synthesis), visualizer (p5.js browser oracle), docs (wiki reference).
+  Legacy repos (Aq-Calc, warp-rl) preserved for history; monorepo is now canonical.
+  Parent: Numogram / DevOps
 
 - [ ] [TREE-GEN] Tree-Based Dungeon Generation — Brogue Method
 Accretion from start room, tree edges (single corridor per parent-child), loops added after tree, stairs at deepest leaf.
@@ -37,9 +43,9 @@ Design: tree-dungeon-generation.md. Council confirmed across 3 temperature modes
 FLOOR_CONFIG controls per-floor parameters. Zone assignment by depth. BLEED preserves tree.
 Next: implement _tree_edges + accretion loop + depth-aware stairs. Test with agents.
 - [ ] [COUNCIL] Numogram Council — Configurable Local Model Deliberation
-Three local ollama models (serial VRAM), mimo-v2-pro cloud judge, per-slot fallbacks, temperature modes (analytical/creative/balanced).
-Plugin: ~/.hermes/plugins/numogram-council/. Tested with tree-based dungeon generation question.
-Models installed: MythoMax-L2-13B (7.9GB), Gemma3:12b-it (7.3GB). Qwen2.5-Coder-14B still pulling.
+**CURRENT STATUS (2026-04-24):** Plugin present but **non‑functional** — lacked `register` function, return type was raw dict instead of JSON. **FIXED (2026-04-24)**: added `register(ctx)` and wrapped returns in `json.dumps`. Council tool now operational, but still uses direct Ollama calls (not delegate_task). Upgrading to `numogram-council-orchestrator` (delegate_task-based) remains P1 for deeper Hermes integration.
+
+Three local ollama models (serial VRAM), mimo-v2-pro cloud judge, per-slot fallbacks, temperature modes (analytical/creative/balanced). Plugin: `~/.hermes/plugins/numogram-council/`. Tested with tree-dungeon-generation question. Models installed: MythoMax-L2-13B (7.9GB), Gemma3:12b-it (7.3GB). Qwen2.5-Coder-14B still pulling.
 Config: council-config.yaml. Setup: council-setup.sh.
 Future: extend to tetralogue voices (four models as four voices, serial loading, accumulated context).
 10 floors mapping to Zones 0-9. Stairs descend. Cryptolith on Floor 5 (The Ruin). Gate shortcuts on Floors 3/6/9.
