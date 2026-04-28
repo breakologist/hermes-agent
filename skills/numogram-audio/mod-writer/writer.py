@@ -57,10 +57,12 @@ class Sample:
 
 class Pattern:
     """64 rows × CHANNEL_COUNT cells. Each cell 4 bytes."""
-    def __init__(self):
+    def __init__(self, rows: int = 64):
         # rows × channels: (period, sample, effect, param)
+        if not (1 <= rows <= 64):
+            raise ValueError("Pattern rows must be 1-64")
         self.rows: List[List[Tuple[int,int,int,int]]] = [
-            [(0,0,0,0) for _ in range(CHANNEL_COUNT)] for _ in range(64)
+            [(0,0,0,0) for _ in range(CHANNEL_COUNT)] for _ in range(rows)
         ]
     def set_cell(self, row:int, channel:int, period:int, sample:int=1, effect:int=0, param:int=0):
         if 0 <= row < 64 and 0 <= channel < CHANNEL_COUNT and 1 <= sample <= 31:

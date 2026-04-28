@@ -1,7 +1,7 @@
 """
 Numogram to music mappings.
 """
-from typing import Tuple
+from typing import Tuple, List
 
 
 # Zone (1-9) → pentatonic degree (C major pentatonic: C D E G A)
@@ -99,3 +99,38 @@ def mod_effect_from_gate(gate: int) -> Tuple[int, int]:
         return (0xF, 36)
     else:
         return (0x0, 0)
+
+# Pentatonic adjacency for entropy injection (zone → neighboring zones within pentatonic set)
+# Used by composer.inject_entropy()
+PENTATONIC_ADJACENCY = {
+    1: (2, 5),   # C → D, A
+    2: (1, 3),   # D → C, E
+    3: (2, 4),   # E → D, G
+    4: (3, 5),   # G → E, A
+    5: (1, 4),   # A → C, G
+    6: (7, 2),   # C (oct5) → D, E (octave‑shifted pentatonic neighbours)
+    7: (6, 8),   # D (oct5)
+    8: (7, 9),   # E (oct5)  → 9 (rest) allowed
+    9: (8, 1, 3, 5, 7),  # REST neighbours (all zones that touch 9 in syzygy graph)
+}
+
+def adjacent_pentatonic_zones(zone: int) -> Tuple[int, ...]:
+    """Return tuple of adjacent pentatonic zones for entropy substitution."""
+    return PENTATONIC_ADJACENCY.get(zone, ())
+
+# Syzygy harmony helpers
+def syzygy_partners(zone: int, max_channels: int = 4) -> Tuple[int, ...]:
+    """
+    Return up to `max_channels` partner zones for triangular harmony.
+    Root zone occupies channel 0; partners fill channels 1..N.
+    """
+    partners = partners_for_zone(zone)
+    return partners[:max_channels]
+
+def harmony_channels_for_zone(zone: int, total_channels: int = 4) -> List[int]:
+    """
+    Given a root zone, return list of channel numbers to use for harmony.
+    Channel 0 = root; channels 1+ = partner zones (up to total_channels-1).
+    """
+    partners = syzygy_partners(zone, max_channels=total_channels-1)
+    return [0] + list(range(1, 1+len(partners)))

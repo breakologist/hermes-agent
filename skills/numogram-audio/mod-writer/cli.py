@@ -42,8 +42,49 @@ def main():
     p.add_argument('--zone', type=int, default=1, help='Zone (1-9)')
     p.add_argument('--gate', type=int, default=0, help='Gate (0-36)')
     p.add_argument('--current', choices=['A', 'B', 'C'], default='A', help='Current A/B/C')
+    p.add_argument('--syzygy', action='store_true', help='Add syzygy harmony on channels 1-3')
+    p.add_argument('--syzygy-channels', type=int, default=3, help='Number of harmony channels (default 3)')
+    p.add_argument('--entropy', type=float, help='Entropy injection rate 0-1')
+    p.add_argument('--entropy-seed', type=int, help='Entropy RNG seed')
+    p.add_argument('--triangular', action='store_true', help='Pattern length = triangular number of zone')
+    p.add_argument('--aq-seed', help='AQ seed string to constrain gate progression')
+    p.add_argument('--rows', type=int, default=16, help='Base pattern row count (default 16)')
     p.add_argument('--output', default='output.mod', help='Output .mod filename')
     args = p.parse_args()
+
+    # Phase 2b/3: if any advanced flag present, use ModComposer
+    advanced = any([
+        args.syzygy,
+        args.entropy is not None,
+        args.triangular,
+        args.aq_seed is not None,
+    ])
+    if advanced:
+        from composer import ModComposer
+        comp = ModComposer(title=args.title)
+        # Build seed sequence across channel 0
+        for r in range(args.rows):
+            comp.add_note(args.zone, args.gate, args.current, row=r, channel=0)
+        if args.syzygy:
+            comp.apply_syzygy_harmony(partner_channels=list(range(1, args.syzygy_channels+1)))
+        if args.entropy is not None:
+            comp.inject_entropy(rate=args.entropy, rng_seed=args.entropy_seed)
+        if args.aq_seed:
+            comp.constrain_gates_by_aq(args.aq_seed)
+        comp._triangular = args.triangular
+        comp.write_mod(args.output)
+        print(f"✔ Composed {args.output}")
+        print(f"  Zone={args.zone} Gate={args.gate} Current={args.current} Rows={args.rows}")
+        if args.syzygy:
+            print(f"  Syzygy harmony on ch1‑{args.syzygy_channels}")
+        if args.entropy is not None:
+            print(f"  Entropy rate={args.entropy} seed={args.entropy_seed}")
+        if args.triangular:
+            print(f"  Triangular pattern length (T({args.zone})={args.zone*(args.zone+1)//2})")
+        if args.aq_seed:
+            print(f"  AQ‑seeded gate progression: {args.aq_seed}")
+        sys.exit(0)
+
 
     zone = args.zone
     gate = args.gate

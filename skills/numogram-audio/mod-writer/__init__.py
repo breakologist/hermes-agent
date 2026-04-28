@@ -5,7 +5,7 @@ Phase 1: valid binary output only.
 Phase 2+: numogram mapping layers.
 """
 
-__version__ = '0.1.0'
+__version__ = '0.3.0'
 
 # Note name → semitone offset from C-4 (middle C = 60)
 NOTE_OFFSETS = {
