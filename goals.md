@@ -169,7 +169,7 @@ Key areas:
   module file specs, real-time audio PLs, tracker automation, visual-programming sound,
   algorithmic ambient 2024. Deliver: comparison table with Python library recommendations.
 
-- [ ] Line B — Tracker-first deep dive: pick 1–2 candidate formats (Furnace .fui, XM),
+[-] Line B — Tracker-first deep dive: pick 1–2 candidate formats (Furnace .fui, XM),
   evaluate Python write-lib availability, design Hermes Tracker Skill API, prototype stub.
 
 - [ ] Line C — MIDI prototype: numogram→melody mapper (zone→scale, gate→velocity,
@@ -178,6 +178,8 @@ Key areas:
 - [ ] Line D — Post-survey: investigate PD/SC textual patch generation (if survey indicates feasible)
 
 - [ ] Line E — Chiptune / synth-chip libs (pygame.sndarray, pyfluidsynth) — low priority,
+  - [x] Phase 1 — Minimal .mod writer baseline (valid header, pattern encoding, zone→pentatonic mapping)
+
   only if tracker route stalls.
 
 Parent: Hermes Infrastructure / Audio
