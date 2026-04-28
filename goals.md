@@ -179,6 +179,7 @@ Key areas:
 
 - [ ] Line E — Chiptune / synth-chip libs (pygame.sndarray, pyfluidsynth) — low priority,
   - [x] Phase 1 — Minimal .mod writer baseline (valid header, pattern encoding, zone→pentatonic mapping)
+  - [x] Audio rendering: soft‑synth produces WAV + spectrogram (ffmpeg fallback path reserved)
 
   only if tracker route stalls.
 
