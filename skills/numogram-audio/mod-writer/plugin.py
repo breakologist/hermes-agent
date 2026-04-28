@@ -67,25 +67,25 @@ def register(ctx):
     # Optional tool for AI orchestration (minimal implementation)
     ctx.register_tool(
         name="numogram_mod_writer",
-        description="Generate a tracker module given numogram parameters",
+        description="Generate a tracker module given numogram parameters, with optional numogram transformations",
         toolset="numogram_audio",
         schema={
             "type": "object",
             "properties": {
                 "zone": {"type": "integer", "minimum": 1, "maximum": 9, "description": "Numogram zone 1-9"},
                 "gate": {"type": "integer", "minimum": 0, "maximum": 36, "description": "Gate 0-36"},
-                "current": {"type": "string", "enum": ["A", "B", "C"], "description": "Current (A=square, B=triangle, C=noise)"},
+                "current": {"type": "string", "enum": ["A","B","C"], "description": "Current (A=square, B=triangle, C=noise)"},
                 "title": {"type": "string", "maxLength": 20, "description": "Song title (optional)"},
                 "output": {"type": "string", "description": "Output .mod filename"},
                 "syzygy": {"type": "boolean", "description": "Add syzygy harmony on channels 1-3"},
-                "syzygy_channels": {"type": "integer", "minimum": 1, "maximum": 3, "default": 3},
-                "entropy": {"type": "number", "minimum": 0, "maximum": 1, "description": "Entropy injection rate"},
-                "entropy_seed": {"type": "integer", "description": "Entropy RNG seed"},
-                "triangular": {"type": "boolean", "description": "Pattern length = triangular number of zone"},
-                "aq_seed": {"type": "string", "description": "AQ seed string to constrain gate progression"},
-                "rows": {"type": "integer", "minimum": 1, "maximum": 64, "default": 16}
+                "syzygy_channels": {"type":"integer","minimum":1,"maximum":3,"default":3},
+                "entropy": {"type":"number","minimum":0,"maximum":1,"description":"Entropy injection rate"},
+                "entropy_seed": {"type":"integer","description":"Entropy RNG seed"},
+                "triangular": {"type":"boolean","description":"Pattern length = triangular T(zone)"},
+                "aq_seed": {"type":"string","description":"AQ seed string to constrain gate progression"},
+                "rows": {"type":"integer","minimum":1,"maximum":64,"default":16}
             },
-            "required": ["zone", "gate", "current", "output"],
+            "required": ["zone","gate","current","output"]
         },
         handler=lambda params: _run_cli(
             f"--zone {params['zone']} --gate {params['gate']} --current {params['current']} "
@@ -96,17 +96,6 @@ def register(ctx):
             + (f" --entropy-seed {params['entropy_seed']}" if params.get('entropy_seed') is not None else "")
             + (f" --triangular" if params.get('triangular') else "")
             + (f" --aq-seed {params['aq_seed']}" if params.get('aq_seed') else "")
-            + (f" --rows {params['rows']}" if params.get('rows', 16) != 16 else "")
+            + (f" --rows {params['rows']}" if params.get('rows',16) != 16 else "")
         )
-            f"--zone {params['zone']} --gate {params['gate']} --current {params['current']} "
-            f"--title {params.get('title','HermesTrack')} --output {params['output']}"
-            + (f" --syzygy" if params.get('syzygy') else "")
-            + (f" --syzygy-channels {params['syzygy_channels']}" if params.get('syzygy') else "")
-            + (f" --entropy {params['entropy']}" if params.get('entropy') is not None else "")
-            + (f" --entropy-seed {params['entropy_seed']}" if params.get('entropy_seed') is not None else "")
-            + (f" --triangular" if params.get('triangular') else "")
-            + (f" --aq-seed {params['aq_seed']}" if params.get('aq_seed') else "")
-            + (f" --rows {params['rows']}" if params.get('rows', 16) != 16 else "")
-        )} --output {params['output']}"
-        ),
     )
