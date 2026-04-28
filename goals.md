@@ -1,6 +1,30 @@
 # Evey's Goals
 
 ## Active
+
+- [ ] Phase 1: Design & scaffold
+  - [x] FILE-COORDINATION.md design doc in workspace/
+  - [x] file_coordinator/ package scaffold (scanner, migrator, reference, exporter, audit)
+  - [x] All modules py_compile clean
+  - [x] goals.md updated with sub-tasks (this checklist)
+
+- [ ] Phase 2: Scanner → migrator wire-up
+  - [ ] scanner: filter to known artifact patterns (allow-list: tsubuyaki, cult-garden, visualizer, voices, diagram)
+  - [ ] migrator: implement canonical naming (avoid collisions), compute SHA256
+  - [ ] reference: validate tilde→assets rewrites only for *migrated* source paths
+  - [ ] audit: structured log entry (JSON line append to ~/.hermes/logs/coordinator.log)
+
+- [ ] Phase 3: Integration (evey-goals + CLI + cron)
+  - [ ] Wrap as hermes CLI command: `hermes file-coord [scan|migrate|fix-refs|export|full]`
+  - [ ] Add evey-goals status hook: coordinator reports pending_items count
+  - [ ] Draft cron job: weekly scan → Telegram summary → prompt for approval
+
+- [ ] Phase 4: Refinement
+  - [ ] Smart canonical naming (read HTML <title>, parse WAV metadata, or derive from context)
+  - [ ] Conflict resolution (existence check + human-in-the-loop for collisions)
+  - [ ] Export health-check as standalone function (callable by other tools)
+
+Parent: Hermes Infrastructure / Automation
 - [x] [TAIXUAN] Implement `oracle.py --taixuan` flag — DONE
 - [ ] [TAIXUAN] Deep Dive — T'ai Hsuan Ching correspondence extensions
 
@@ -137,6 +161,8 @@ Key areas:
 206 runs logged. Human players reach 100% hyp across 9 zones. Agents struggle. The game works; it needs more depth.
 
 ## Completed
+- [x] Artifact pipeline dry-run (April 28): migrated 10 generated artifacts into wiki/assets/, normalized tilde→assets references across 14 wiki pages, restored 3 orphaned images from export history. Verified vault→export parity (250 pages ↔ docs/wiki/).
+
 - [x] [DUNGEON] Multi-Floor Dungeon — The Three Routes
 - [x] [DESIGN] Hyperstition Loop & Dungeon Depth — The Resource Economy
 - [ ] [GAME] Phase 1 Complete — Abilities, Corruption, Sil, LOS, Cult Garden
