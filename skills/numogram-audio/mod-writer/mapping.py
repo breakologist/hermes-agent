@@ -1,6 +1,8 @@
 """
 Numogram to music mappings.
 """
+from typing import Tuple
+
 
 # Zone (1-9) → pentatonic degree (C major pentatonic: C D E G A)
 ZONE_TO_NOTE = {
@@ -50,3 +52,50 @@ def effect_from_gate(gate: int):
     """Return (effect_code, parameter) for gate value."""
     mapping = GATE_TO_EFFECT.get(gate, ('NONE', 0))
     return mapping
+
+def note_and_octave_from_zone(zone: int) -> Tuple[str, int]:
+    """Return (note_name, octave) for zone (1-9). Zone 9 returns ('REST', 0)."""
+    if zone == 9:
+        return ('REST', 0)
+    note = ZONE_TO_NOTE[zone]
+    octave = ZONE_TO_OCTAVE[zone]
+    return (note, octave)
+
+
+def mod_effect_from_gate(gate: int) -> Tuple[int, int]:
+    """
+    Map numogram gate (0-36) to Protracker effect command and parameter.
+    Returns (effect_cmd, effect_param) as integers.
+    Families: 0-9=Arpeggio, 10-19=PortaUp, 20-29=Volume,
+              30-31=PatternJump/Break, 32-34=Extended filter,
+              35=Syzygy, 36=Entropy.
+    """
+    if 0 <= gate <= 9:
+        # Arpeggio: cmd=0x0, param encodes two offsets as nibbles (symmetric)
+        param = ((gate & 0xF) << 4) | (gate & 0xF)
+        return (0x0, param)
+    elif 10 <= gate <= 19:
+        # Porta up: cmd=0x1
+        speed = (gate - 10) * 25  # 0,25,50,...,225
+        return (0x1, speed)
+    elif 20 <= gate <= 29:
+        # Set volume: cmd=0xA, param 0-64
+        vol = (gate - 20) * 6  # yields 0,6,12,...,54
+        return (0xA, vol)
+    elif gate == 30:
+        # Position jump (order jump): cmd=0xB, param not used meaningfully here
+        return (0xB, 0)
+    elif gate == 31:
+        # Pattern break: cmd=0xB
+        return (0xB, 0)
+    elif 32 <= gate <= 34:
+        # Extended effects: cmd=0xE
+        return (0xE, gate - 32)
+    elif gate == 35:
+        # Syzygy special effect
+        return (0xE, 10)
+    elif gate == 36:
+        # Entropy special effect
+        return (0xF, 36)
+    else:
+        return (0x0, 0)

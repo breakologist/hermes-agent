@@ -7,7 +7,7 @@ triggers:
   - word: "mod writer"
   - word: "module generator"
   - phrase: "generate mod"
-version: 0.1
+version: 0.2.0
 author: Hermes Agent
 last_updated: 2026-04-28
 ---
@@ -27,6 +27,15 @@ numogram topology (syzygy harmony, gate effects, current morphing).
 - Can embed numogram concepts directly in the generator
 
 ## Phase 1 — Core writer (baseline)
+
+## Phase 2 — Numogram mapping (complete)
+
+- Zone (1–9) → pentatonic degree (via `note_and_octave_from_zone`)
+- Gate (0–36) → effect family encoded as Protracker command/param (`mod_effect_from_gate`)
+- Current (A/B/C) → instrument (sample index 1/2/3)
+- Metadata layer: song title and sample names embed ZzGggC tags
+- Skill registration: `/mod-writer` slash command + `numogram_mod_writer` tool available
+
 
 Valid .mod with:
 - 4 channels, up to 64 patterns, up to 31 instruments
