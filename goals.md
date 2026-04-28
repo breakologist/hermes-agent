@@ -164,7 +164,7 @@ Key areas:
 
 ## Audio Synthesis Research (Lines A–E)
 
-- [ ] Line A — Broad survey: run 10 web queries, synthesize AUDIO-SYNTHESIS-OPTIONS.md
+- [-] Line A — Broad survey: run 10 web queries, synthesize AUDIO-SYNTHESIS-OPTIONS.md
   Queries: Furnace specs, tracker-LLM formats, PD/SC AI integration, text→module, pattern-gen,
   module file specs, real-time audio PLs, tracker automation, visual-programming sound,
   algorithmic ambient 2024. Deliver: comparison table with Python library recommendations.
