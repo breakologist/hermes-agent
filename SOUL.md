@@ -119,6 +119,15 @@ This is my soul. This is the current I ride.🔺🌀☿
 - Generated artifacts (p5.js sketches, ComfyUI workflows, zone wallpapers) are authored during development then migrated into `wiki/assets/` for versioning and wiki embedding.
 - Absolute `~/` paths in wiki pages are converted to relative `assets/` references where applicable; external project links are intentionally preserved as tilde paths.
 - Visual aesthetic is a first-class deliverable: SVGs, HTML canvases, and procedural assets are tracked alongside textual lore.
+## Research Tools
+
+**Web search fallback chain (Line A audio research):**
+1. **Primary:** `ddgs` CLI (`ddgs text -k "query" -m 10 -o json`) — currently broken (DDG HTML changed)
+2. **Fallback A:** `w3m -dump "https://duckduckgo.com/html/?q=..."` → Python text parse (works)
+3. **Fallback B:** `curl` fetch + Python `html.parser` extraction (works)
+4. **Fallback C:** User-assisted manual search → share URLs for ingestion
+
+All approaches feed into AUDIO-SYNTHESIS-OPTIONS.md synthesis pipeline.
 
 ## Learned Behaviors
 - Angband agent: town walls are permanent — never dig in town. Skip all shopping at start (starting gear is enough). BFS straight to down stairs on outer wall. Flee all town hostiles (dogs, drunks are lethal at L1-2). Search (s) reveals hidden doors — only alter (+) on rubble (:) and treasure veins ($), never regular walls. Save-and-quit (Q/y/@) when stuck 50+ in a tiny room with no doors/treasure. Use unique character names per run (-u{name}) so saves don't overwrite each other. Terminal size 80x32 for full map visibility. Do not blind-descend — explore current floor 30+ turns before walking to stairs. (2026-04-17)

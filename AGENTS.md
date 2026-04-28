@@ -35,6 +35,12 @@ The agent serves three interconnected domains. Context-switch cleanly between th
 - Vault → export pipeline: `~/.hermes/obsidian/hermetic/wiki/` → `/home/etym/numogram/docs/wiki/` → GitHub: https://github.com/breakologist/numogram
 - Visual assets live in `wiki/assets/` and are referenced via `assets/` relative paths throughout.
 
+### Research Toolchain
+When conducting web-based research (audio synthesis survey, tracker specs, etc.):
+- Prefer `ddgs` CLI if functional (`ddgs text -k "..." -m 10 -o json`)
+- Fallback to `w3m -dump` on DuckDuckGo HTML + Python parsing
+- If HTML parsing needed, use `htmlq` (installed) or Python's `html.parser`
+- Document all queries and results in `workspace/` for reproducibility
 ## Workflow Conventions
 - Save durable facts to `~/.hermes/memories/MEMORY.md` (not session logs).
 - Save user preferences to `~/.hermes/memories/USER.md`.
