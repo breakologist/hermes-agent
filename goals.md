@@ -159,6 +159,28 @@ Key areas:
 - Gate system depth (gate chains, gate puzzles, gate-boss encounters)
 
 206 runs logged. Human players reach 100% hyp across 9 zones. Agents struggle. The game works; it needs more depth.
+  - [ ] Audio compression policy: WAV → OGG/Opus before migration (ffmpeg pipeline), skip if compressed version exists
+
+
+## Audio Synthesis Research (Lines A–E)
+
+- [ ] Line A — Broad survey: run 10 web queries, synthesize AUDIO-SYNTHESIS-OPTIONS.md
+  Queries: Furnace specs, tracker-LLM formats, PD/SC AI integration, text→module, pattern-gen,
+  module file specs, real-time audio PLs, tracker automation, visual-programming sound,
+  algorithmic ambient 2024. Deliver: comparison table with Python library recommendations.
+
+- [ ] Line B — Tracker-first deep dive: pick 1–2 candidate formats (Furnace .fui, XM),
+  evaluate Python write-lib availability, design Hermes Tracker Skill API, prototype stub.
+
+- [ ] Line C — MIDI prototype: numogram→melody mapper (zone→scale, gate→velocity,
+  syzygy→interval), generate test MIDI, evaluate listenability. Fast validation.
+
+- [ ] Line D — Post-survey: investigate PD/SC textual patch generation (if survey indicates feasible)
+
+- [ ] Line E — Chiptune / synth-chip libs (pygame.sndarray, pyfluidsynth) — low priority,
+  only if tracker route stalls.
+
+Parent: Hermes Infrastructure / Audio
 
 ## Completed
 - [x] Artifact pipeline dry-run (April 28): migrated 10 generated artifacts into wiki/assets/, normalized tilde→assets references across 14 wiki pages, restored 3 orphaned images from export history. Verified vault→export parity (250 pages ↔ docs/wiki/).
