@@ -18,7 +18,7 @@ PARENT = os.path.dirname(DIR)
 if PARENT not in sys.path:
     sys.path.insert(0, PARENT)
 
-from mod_writer.writer import ModWriter, Pattern, Sample, period_for_note, NOTE_OFFSET
+from mod_writer.writer import ModWriter, Pattern, Sample, period_for_note, NOTE_OFFSET, PERIOD_TABLE
 from mod_writer.utils import generate_square_wave, generate_triangle_wave, generate_noise
 from mod_writer.mapping import (
     note_and_octave_from_zone,
@@ -199,6 +199,7 @@ def main():
     # Phase 4.5 — auditory verification & description
     p.add_argument('--verify', action='store_true', help='Run quality checks; exit non-zero on clipping/DC offset')
     p.add_argument('--describe', action='store_true', help='Print a textual portrait of the rendered sound')
+    p.add_argument('--warn-clamp', action='store_true', help='Warn if any notes exceed period table range and get clamped to period 0')
 
 
     args = p.parse_args()
@@ -397,13 +398,23 @@ def main():
         comp = ModComposer(title=args.title)
         if args.triad_motif:
             # Triad‑motif generates its own note texture; ignore --zone/--gate/--current for channel 0
-            comp.apply_triad_motif(
+            meta = comp.apply_triad_motif(
                 motif=args.triad_motif,
                 rows=args.rows,
                 gate=args.gate,
                 current=args.current,
                 channels=[0, 1, 2]  # three‑voice triad texture
             )
+        if args.warn_clamp:
+            clamped_info = meta.get('clamped', {})
+            if any([clamped_info.get('root'), clamped_info.get('third'), clamped_info.get('fifth')]):
+                print("⚠ Clamping warnings (notes exceeded period table range):")
+                for tone in meta.get('tone_data', []):
+                    if tone.get('clamped'):
+                        print(f"  • {tone['name']} (octave {tone['octave']}, index {tone['semitone_index']}) -> period 0 (clamped)")
+                print(f"  Valid semitone indices: 0–{clamped_info.get('max_valid_index', '?')} (period table size {len(PERIOD_TABLE)})")
+
+
         else:
             # Build seed sequence across channel 0
             for r in range(args.rows):
