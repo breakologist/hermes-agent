@@ -14,15 +14,10 @@ from typing import List, Dict, Tuple, Optional
 import random
 import hashlib
 
-# Import from sibling modules robustly
-import sys, os
-DIR = os.path.dirname(os.path.abspath(__file__))
-if DIR not in sys.path:
-    sys.path.insert(0, DIR)
-
-from writer import ModWriter, Pattern, Sample, period_for_note, NOTE_OFFSET
-from utils import generate_square_wave, generate_triangle_wave, generate_noise
-from mapping import (
+# Relative imports within the package
+from .writer import ModWriter, Pattern, Sample, period_for_note, NOTE_OFFSET
+from .utils import generate_square_wave, generate_triangle_wave, generate_noise
+from .mapping import (
     note_and_octave_from_zone,
     mod_effect_from_gate,
     CURRENT_TO_INSTRUMENT,
@@ -169,7 +164,21 @@ class ModComposer:
     ) -> Pattern:
         """
         Flatten zone_grid into a single Pattern.
-        If triangular=True, length = triangular number of a representative zone.
+
+        Normal mode (triangular=False):
+          Pattern length = `length` if provided, otherwise the maximum row index
+          occupied by any note plus one. Rows without notes are zero‑filled.
+
+        Triangular mode (triangular=True):
+          Pattern length = triangular(max_zone) where max_zone is the highest
+          zone value present in the grid. Triangular(N) = N*(N+1)//2. The
+          length is capped at 64 rows (the maximum pattern size in a .mod).
+          This feature links pattern structure to numogram zone topology:
+          a motif whose notes span zones [a, b, c] with max zone M yields a
+          pattern of M(M+1)/2 rows, echoing the triangular syzygy geometry.
+
+        All missing cells (rows/channels without explicit notes) are filled
+        with period=0 (rest) by _fill_missing_cells.
         """
         if triangular:
             # Use max zone among placed notes, or default to zone 5 (T(5)=15)

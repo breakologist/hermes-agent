@@ -14,22 +14,23 @@ import json
 import datetime
 
 DIR = os.path.dirname(os.path.abspath(__file__))
-if DIR not in sys.path:
-    sys.path.insert(0, DIR)
+PARENT = os.path.dirname(DIR)
+if PARENT not in sys.path:
+    sys.path.insert(0, PARENT)
 
-from writer import ModWriter, Pattern, Sample, period_for_note, NOTE_OFFSET
-from utils import generate_square_wave, generate_triangle_wave, generate_noise
-from mapping import (
+from mod_writer.writer import ModWriter, Pattern, Sample, period_for_note, NOTE_OFFSET
+from mod_writer.utils import generate_square_wave, generate_triangle_wave, generate_noise
+from mod_writer.mapping import (
     note_and_octave_from_zone,
     mod_effect_from_gate,
     CURRENT_TO_INSTRUMENT,
     ZONE_TO_NOTE,
 )
 # Import triad‑motif policy to expose available motif names as cli choices
-from composer import TRIAD_MOTIF_POLICY, ModComposer
+from mod_writer.composer import TRIAD_MOTIF_POLICY, ModComposer
 
 # Audio rendering & analysis (Phase 4)
-AUDIO_RENDERER_DIR = os.path.normpath(os.path.join(DIR, '..', 'audio-renderer'))
+AUDIO_RENDERER_DIR = os.path.normpath(os.path.join(DIR, '..', '..', 'audio-renderer'))
 if AUDIO_RENDERER_DIR not in sys.path:
     sys.path.insert(0, AUDIO_RENDERER_DIR)
 try:
@@ -174,6 +175,8 @@ def main():
                       'Monochord/Pythagorean/Ptolemaic/Harmonic.')
     p.add_argument('--validate-motif', choices=sorted(TRIAD_MOTIF_POLICY.keys()),
                   help='Dry-run: validate triad-motif zone mapping and print JSON report (no .mod written).')
+    p.add_argument('--validate-all', action='store_true',
+                  help='Dry-run: validate all 24 canonical triads (12 roots × 2 qualities)')
     p.add_argument('--inspect-motif', choices=sorted(TRIAD_MOTIF_POLICY.keys()),
                   help='Dry-run: inspect full grid for a triad motif (table/JSON/CSV); no .mod written.')
     p.add_argument('--inspect-format', choices=['table','json','csv'], default='table',
@@ -240,6 +243,102 @@ def main():
                     else:
                         print(f"{row},{ch_idx},{ch_data['note']},{ch_data['octave']},{ch_data['zone']},{ch_data['gate']},{ch_data['current']},{ch_data['period']}")
         sys.exit(0)
+
+    # ── Phase 2c: exhaustive triad validation (dry-run) ─────────────────────────
+    if args.validate_all:
+        # Load canonical vectors
+        import json
+        vectors_path = os.path.join(DIR, 'canonical_vectors.json')
+        with open(vectors_path) as f:
+            vectors = json.load(f)
+
+        # Rebuild period reverse mapping (same as validate-motif)
+        PERIOD_TO_NOTE = {}
+        for octv in range(0, 9):
+            for note in NOTE_OFFSET:
+                p = period_for_note(note, octv)
+                if p not in PERIOD_TO_NOTE:
+                    PERIOD_TO_NOTE[p] = (note, octv)
+
+        def digital_root(n: int) -> int:
+            while n > 9:
+                n = sum(int(d) for d in str(n))
+            return n
+
+        all_passed = True
+        results = []
+        for vec in vectors:
+            root = vec['root']
+            quality = vec['quality']
+            octave = vec['octave']
+            expected_zones = sorted(set(vec['zones']))
+
+            # Build a temporary composer with this triad
+            comp = ModComposer(title=f"val-{root}-{quality}")
+            third_int = 3 if quality == 'minor' else 4
+            fifth_int = 7
+            root_offset = NOTE_OFFSET[root]
+            root_semi = octave * 12 + root_offset
+            third_semi = root_semi + third_int
+            fifth_semi = root_semi + fifth_int
+            zones_calc = [
+                digital_root(root_semi + 1),
+                digital_root(third_semi + 1),
+                digital_root(fifth_semi + 1),
+            ]
+            chromatic = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+            def note_name(offset): return chromatic[offset % 12]
+            root_note = note_name(root_offset)
+            third_note = note_name((root_offset + third_int) % 12)
+            fifth_note = note_name((root_offset + fifth_int) % 12)
+            octave_root = root_semi // 12
+            octave_third = third_semi // 12
+            octave_fifth = fifth_semi // 12
+
+            for r in range(args.rows):
+                comp.add_note(zone=zones_calc[0], gate=args.gate, current=args.current, row=r, channel=0,
+                              note=root_note, octave=octave_root)
+                comp.add_note(zone=zones_calc[1], gate=args.gate, current=args.current, row=r, channel=1,
+                              note=third_note, octave=octave_third)
+                comp.add_note(zone=zones_calc[2], gate=args.gate, current=args.current, row=r, channel=2,
+                              note=fifth_note, octave=octave_fifth)
+
+            pat = comp.build_patterns_from_grid(length=args.rows, triangular=args.triangular)
+            zones_observed = set()
+            for row in range(args.rows):
+                for ch in range(3):
+                    period = pat.rows[row][ch][0]
+                    if period == 0:
+                        continue
+                    note_oct = PERIOD_TO_NOTE.get(period)
+                    if note_oct is None:
+                        zones_observed.add('UNKNOWN')
+                    else:
+                        note, octv = note_oct
+                        semi = octv * 12 + NOTE_OFFSET[note]
+                        zones_observed.add(digital_root(semi + 1))
+            match = sorted(zones_observed) == expected_zones
+            if not match:
+                all_passed = False
+            results.append({
+                'root': root,
+                'quality': quality,
+                'octave': octave,
+                'expected_zones': expected_zones,
+                'observed_zones': sorted(zones_observed),
+                'match': match,
+            })
+
+        report = {
+            'mode': 'validate-all',
+            'total': len(vectors),
+            'passed': sum(1 for r in results if r['match']),
+            'failed': sum(1 for r in results if not r['match']),
+            'all_passed': all_passed,
+            'details': results,
+        }
+        print(json.dumps(report, indent=2))
+        sys.exit(0 if all_passed else 1)
 
     # ── Phase 2c: standalone triad-motif validation (dry-run) ────────────────────
     if args.validate_motif:
