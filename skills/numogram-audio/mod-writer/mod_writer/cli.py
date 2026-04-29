@@ -19,6 +19,7 @@ if PARENT not in sys.path:
     sys.path.insert(0, PARENT)
 
 from mod_writer.writer import ModWriter, Pattern, Sample, period_for_note, NOTE_OFFSET, PERIOD_TABLE
+from mod_writer.song import SongBuilder, build_song
 from mod_writer.utils import generate_square_wave, generate_triangle_wave, generate_noise
 from mod_writer.mapping import (
     note_and_octave_from_zone,
@@ -158,6 +159,7 @@ def _run_phase4(mod_path: str, args) -> None:
 
 
 def main():
+    import json  # ensure local binding despite later conditional import
     p = argparse.ArgumentParser(description="Generate .mod modules with numogram mapping.")
     p.add_argument('--title', default='HermesTracker', help='Song title (max 20 chars)')
     p.add_argument('--zone', type=int, default=1, help='Zone (1-9)')
@@ -199,6 +201,10 @@ def main():
     # Phase 4.5 — auditory verification & description
     p.add_argument('--verify', action='store_true', help='Run quality checks; exit non-zero on clipping/DC offset')
     p.add_argument('--describe', action='store_true', help='Print a textual portrait of the rendered sound')
+    p.add_argument('--song', metavar='ARRANGEMENT.json',
+                  help='Load multi-section arrangement from JSON file')
+    p.add_argument('--bpm', type=int, default=125,
+                  help='Global tempo for the song (stored in title/metadata)')
     p.add_argument('--warn-clamp', action='store_true', help='Warn if any notes exceed period table range and get clamped to period 0')
 
 
@@ -394,6 +400,24 @@ def main():
         args.aq_seed is not None,
         args.triad_motif is not None,
     ])
+    if args.song:
+        # ——— Phase 5 — Song orchestration ———————————————————————————————————
+        with open(args.song) as f:
+            arrangement = json.load(f)
+
+        builder = SongBuilder(
+            title = arrangement.get('title', 'Song'),
+            bpm   = arrangement.get('bpm', args.bpm),
+        )
+        builder.from_dict(arrangement)
+        builder.write(args.output, verbose=True)
+
+        if args.warn_clamp:
+            print("⚠ --warn-clamp not yet implemented in song mode (section-level TBD)")
+
+        # Phase 4 pipeline (if requested) would go here per-section in future
+        sys.exit(0)
+
     if advanced:
         comp = ModComposer(title=args.title)
         if args.triad_motif:

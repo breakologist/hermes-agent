@@ -81,6 +81,13 @@ class Pattern:
     def set_cell(self, row:int, channel:int, period:int, sample:int=1, effect:int=0, param:int=0):
         if 0 <= row < 64 and 0 <= channel < CHANNEL_COUNT and 1 <= sample <= 31:
             self.rows[row][channel] = (period, sample, effect, param)
+
+    def clone(self) -> "Pattern":
+        """Return a deep copy of this pattern."""
+        new = Pattern(rows=len(self.rows))
+        new.rows = [row[:] for row in self.rows]
+        return new
+
     def pack(self) -> bytes:
         out = bytearray()
         for row_vals in self.rows:
