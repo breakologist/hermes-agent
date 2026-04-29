@@ -7,10 +7,10 @@ triggers:
   - word: "mod writer"
   - word: "module generator"
   - phrase: "generate mod"
-version: 0.3.0
-author: Hermes Agent
+version: 0.4.0
+author: Hermes Agent + CCRU lineage
 last_updated: 2026-04-28
-status: stable (Phase 2/3)
+status: stable (Phase 4 rendering)
 ---
 ## Purpose
 
@@ -71,13 +71,124 @@ Key class: `ModComposer`
 Convenience one‑shot: `ModComposer.compose(**kwargs)`.
 
 CLI integration: `--syzygy`, `--syzygy-channels`, `--entropy`, `--entropy-seed`,
-`--triangular`, `--aq-seed`, `--rows`.
+`--triangular`, `--aq-seed`, `--rows`, `--triad-motif`.
 
 Status: ✓ complete (v0.3.0)
 
+### Phase 2c — Triad‑Motif Harmony (complete)
+
+- **Triad‑Motif policy** — given a motif name, select a triad (root, quality, octave)
+  whose zone set aligns with the motif's target zones.
+- Implemented via `ModComposer.apply_triad_motif(motif, rows, gate, current, channels)`.
+  The function computes absolute semitone indices for root, third, and fifth, then
+  derives **individual octaves** for each chord tone (third/fifth may cross octave
+  boundaries). Initial version erroneously used the candidate octave for all three
+  notes, breaking motifs whose fifth exceeds the root octave (e.g., Pythagorean G‑major).
+  Fixed 2026‑04‑29: now zones match the pre‑computed triad‑zone tables for all candidates.
+- CLI flags:
+  - `--triad-motif NAME` — generate triad texture (overrides `--zone/--gate/--current`);
+    accepts any key from `TRIAD_MOTIF_POLICY` (Numogram currents + Quadrivium systems).
+  - `--validate-motif NAME` — **dry‑run validation**: builds the motif pattern in‑memory,
+    extracts period values, maps them back to zones via `period_for_note`, and prints a
+    JSON report containing expected vs observed zone sets plus a pass/fail flag. No `.mod`
+    file is written. Useful for CI and quick sanity checks.
+  - `--rows N` controls pattern length (default 16); `--triangular` forces triangular
+    pattern length derived from the motif's zone.
+- Overrides the default single‑channel seed pattern; generates a three‑voice chord
+  texture on channels 0–2 using the highest‑ranked candidate from the policy.
+- See `composer.py` for the full policy dictionary; zone‑triad tables are in
+  `docs/wiki/assets/triad_zone_tables.json` and reference pages `tracker-motif-triads-reference`,
+  `tracker-music-theory-mappings`.
+- New wiki page `quadrivium-music-digest` explores the theoretical background.
+- All five motifs (Sink, Monochord, Pythagorean, Ptolemaic, Harmonic) now validate
+  in‑memory with correct zone sets.
+
+**Quadrivium motif reference**
+
+| Motif       | Triad (root, quality, octave) | Zone triple | Rationale |
+|-------------|------------------------------|-------------|-----------|
+| Monochord   | D minor 3                     | (1, 3, 6)   | Triangular syzygy cluster from monochord division points |
+| Pythagorean | G major 3                     | (3, 6, 8)   | Perfect fifth (3:2) of C; embodies the 3‑limit tuning drive |
+| Ptolemaic   | C major 3                     | (1, 5, 8)   | Just intonation major triad 4:5:6; pure major third (zone 5) |
+| Harmonic    | C major 4                     | (2, 4, 8)   | Harmonic series partials 4,5,6 transposed to one octave |
+
+Status: ✓ complete (v0.5.0, octave‑fix + `--validate-motif` added 2026‑04‑29)
+
 ---
 
+#### Implementation methodology for new motif systems
+
+When extending the mod-writer with a new motif or harmony system (e.g., just-intonation
+mode, hexagram chords, or additional Quadrivium systems), follow this validated pipeline
+to ensure mathematical soundness, documentation completeness, and CI‑ready verification:
+
+1. **Derive zone mapping from canonical sources**  
+   Start from the digital‑root formula `zone = digital_root(semitone_index + 1)`.
+   Compute the expected zone triple for each candidate triad (root, quality, octave)
+   using the exhaustive `triad_zone_tables.json` as ground truth. Select the
+   candidate whose zone set best matches the motif's target zones.
+
+2. **Implement with absolute‑octave handling**  
+   In `apply_triad_motif` (or similar), compute absolute semitone indices for
+   each chord tone (`root_semi`, `third_semi`, `fifth_semi`) and derive individual
+   octaves via `// 12`. Never reuse the policy octave for all notes; intervals
+   that cross octave boundaries (e.g., a perfect fifth above G3) must place the
+   fifth in the next octave. This prevents the "Pythagorean bug" where the fifth
+   rendered one octave too low.
+
+3. **Add an in‑memory validation flag**  
+   Implement `--validate-motif NAME` (or `--validate-<feature>`) that:
+   - Builds the pattern in memory without writing a file
+   - Extracts period values from the `Pattern` object
+   - Maps periods back to zones via `period_for_note` reverse lookup
+   - Compares observed zone set to expected and prints JSON + exit code (0 pass, 1 fail)
+   This serves as a CI gate and rapid sanity check during development.
+
+4. **Update documentation in layers**  
+   - **SKILL.md**: Add the motif to `TRIAD_MOTIF_POLICY`, document the candidate
+     selection rationale, update the Phase 2c subsection and version/status.
+   - **Wiki (vault)**: Create or extend a reference page (`tracker-motif-…`) with
+     a table of all candidates and their zone triples. For theoretically rich
+     motifs, write a digest page linking the historical system to the numogram
+     mapping (as with Quadrivium).
+   - **Wiki (export)**: Mirror all vault changes via rsync; ensure `index.md`
+     Recent Additions lists the new pages.
+   - **Logs**: Append an after‑action report to both vault and export `log.md`
+     summarising derivation, implementation decisions, validation results, and
+     bugs fixed.
+
+5. **Verify exhaustively before commit**  
+   Run the validation flag for all candidates of the new motif. For triad systems,
+   check all 12 roots × 2 qualities (or at least every zone appears correctly)
+   to catch any octave‑boundary errors. Ensure the in‑memory zone fingerprint
+   matches the pre‑computed table exactly.
+
+6. **Git hygiene**  
+   Stage only the affected skill directory and wiki pages; commit with a clear
+   message prefix (`feat(numogram-audio): …` for code, `docs: …` for wiki).
+   Push the export wiki to GitHub separately.
+
+Following this pattern ensures every new motif system is **mathematically sound**,
+**documented in depth**, and **verifiable** both in‑memory and (later) in rendered audio.
+
+---
+
+```bash
+# Generate a 16‑row texture with the Sink triad motif
+python3 cli.py \
+  --triad-motif Sink \
+  --rows 16 \
+  --output sink_triad.mod \
+  --title "SinkTriad"
+```
+
+The `--triad-motif` flag activates `apply_triad_motif()` which selects the
+highest‑ranked candidate from `TRIAD_MOTIF_POLICY` (root, quality, octave)
+and writes three‑voice root‑third‑fifth across channels 0‑2.
+
+
 ## Phase 3 — Hypersigil Extensions (complete)
+
 
 All features now operational:
 
@@ -95,6 +206,119 @@ entropy mutates zones → AQ shifts gates → pattern length set (triangular).
 
 Status: ✓ complete (v0.3.0)
 
+---
+
+## Phase 4 — Audio Rendering & Spectral Analysis (complete)
+
+The `audio-renderer` skill provides the perception layer: convert binary `.mod`
+into linear PCM audio and extract visual/analytic artefacts.
+
+### 4.1 Rendering pipeline
+
+`render_mod_to_wav(mod_path)` → WAV (16‑bit mono, 44.1 kHz)
+- Primary backend: `ffmpeg` with `libopenmpt` decoder (confirmed present)
+- Fallback: pure‑Python soft synth (`SoftSynth` from `synth.py`) if ffmpeg fails
+
+### 4.2 Spectrogram generation
+
+`generate_spectrogram(wav_path, colormap='viridis', size='800x400')` → PNG
+- Filter: `showspectrumpic=scale=log:color=<colormap>:size=<WxH>`
+- Validated colormaps on current build: `viridis`, `magma`, `plasma`, `cool`
+- Output: `<wav>_spec.png` (single‑frame spectral snapshot)
+
+### 4.3 Live playback
+
+`play_audio(wav_path, player='ffplay')` — system audio sink
+Options: `ffplay`, `aplay`, `pw-play`, `mpg123`.
+
+### 4.4 Basic feature extraction
+
+`analyze_wav(wav_path)` → JSON‑serialisable dict:
+```json
+{
+  "duration": 7.78,
+  "sample_rate": 48000,
+  "n_frames": 373440,
+  "rms": 0.0,
+  "peak": 0,
+  "zero_crossing_rate": 0.0000,
+  "path": "/tmp/file.wav"
+}
+```
+Stdlib‑only (`wave`, `array`, `math`); no heavy deps yet.
+
+### 4.5 Manifest aggregation
+
+`--manifest` flag writes `_manifest.json` bundling:
+- Track metadata (zone/gate/current, hypersigil flags)
+- File paths (`.mod`, `.wav`, `_spec.png`)
+- Optional analysis block
+- ISO timestamp
+
+### CLI flags
+
+| Flag | Meaning |
+|---|---|
+| `--render` | Convert generated `.mod` to WAV |
+| `--spectrogram` | Also generate PNG spectrogram |
+| `--colormap viridis\|magma\|plasma\|cool` | FFmpeg spectrogram palette (default `viridis`) |
+| `--spec-size WxH` | Image dimensions, default `800x400` |
+| `--play` | Play WAV via system player (implies `--render`) |
+| `--player ffplay\|aplay\|pw-play\|mpg123` | Audio backend |
+| `--analyze` | Extract basic audio features to `_analysis.json` |
+| `--manifest` | Write full `_manifest.json` metadata bundle |
+
+All Phase 4 flags can be combined freely with Phase 2b/3 hypersigil flags.
+
+Examples:
+```bash
+# Full hypersigil + render + spec + analysis
+python -m numogram_audio.mod_writer \
+  --zone 3 --gate 6 --current A \
+  --syzygy --entropy 0.08 --triangular --aq-seed "WR-3-6" \
+  --render --spectrogram --colormap magma --spec-size 960x540 \
+  --analyze --manifest \
+  --output hypersigil.mod
+```
+
+Status: ✓ complete (v0.4.0)
+
+### 4.5 Auditory analysis, verification, and description
+
+`analyze_wav()` now delegates to `audio-renderer/analyzer.py`, a comprehensive
+ffmpeg/ffprobe-based analysis pipeline that extracts:
+
+| Metric | Source |
+|---|---|
+| Duration, sample_rate, bit_depth | `ffprobe` JSON |
+| RMS, peak, true‑peak, crest factor | `ffmpeg astats` |
+| Integrated loudness (LUFS) | `ffmpeg ebur128` |
+| DC offset | `astats.mean` |
+| Spectral centroid / roll‑off | `astats` frequency statistics |
+| Onset density | `silencedetect` + segment counting |
+| Quality flag | clipping detection (`peak_count > 0`), DC offset warning |
+
+The analysis dict is flat, JSON‑serialisable, and embedded in:
+
+* `--analyze` → writes `<wav>_analysis.json`
+* `--manifest` → includes `"analysis": {...}` in `_manifest.json`
+* `--json` → merges `"analysis": {...}` into the compact TD status file
+* `--verify` → exits non‑zero if `quality != "pass"` (clipping/DC offset)
+* `--describe` → prints a one‑sentence oracle portrait using zone/gate/current context
+
+Example description:
+```
+Zone 3::6 (A) renders a loud, saturated harmonic current (frantic staccato; high-frequency dominant). Peak=0.98, LUFS=-8.4, CR=1.42. [quality: WARNING]
+```
+
+All flags are compositional and can be combined:
+```
+--render --spectrogram --analyze --describe --verify --json
+```
+
+---
+
+|
 ---
 
 ## Usage
@@ -137,6 +361,14 @@ python -m numogram_audio.mod_writer \
   --output hypersigil.mod
 ```
 
+# Analysis + description + verification + TD ready
+python -m numogram_audio.mod_writer \
+  --zone 3 --gate 6 --current A \
+  --syzygy --entropy 0.08 --triangular \
+  --render --spectrogram --colormap plasma \
+  --analyze --describe --verify --json \
+  --output audit.mod
+
 ### Hermes TUI
 
 ```
@@ -161,18 +393,68 @@ comp.write_mod("syzygy_etude.mod")
 
 ---
 
+
+## TouchDesigner integration
+
+### td-watcher.py
+A lightweight polling watcher lives in `audio-renderer/td-watcher.py`:
+
+```bash
+python3 ~/.hermes/skills/numogram-audio/audio-renderer/td-watcher.py --dir ~/numogram/outputs
+```
+
+It scans the directory for the newest `.wav` and `_spectrogram.png`, merges
+metadata from the sibling `.json` status file, and writes `td_state.json`.
+TouchDesigner can monitor this file with a **File In DAT** (configured to
+poll the file, or use a *File Watch* CHOP) and drive:
+
+- **Movie File In TOP** ← `spectrogram` key (PNG path)
+- **Audio File In CHOP** ← `wav` key
+- **Text TOP** ← `zone`, `gate`, `current` keys
+
+Colors come from `palettes.py::ZONE_COLOR[zone]`.
+
+### Compact JSON output (`--json`)
+The `--json` flag emits a small status file next to the `.mod`:
+
+```json
+{
+  "zone": 3,
+  "gate": 6,
+  "current": "A",
+  "title": "Warp Tune",
+  "wav": "/abs/path/output.wav",
+  "spectrogram": "/abs/path/output_spec.png",
+  "palette": "plasma",
+  "timestamp": "2026-04-29T14:32:00"
+}
+```
+
+This is the source for `td_state.json` when used together with `--json`.
+
+---
+
+
 ## Files
 
 ```
 mod-writer/
-  __init__.py      # __version__ = '0.3.0'  (phase 2/3)
-  writer.py        # ModWriter, Pattern (rows 1‑64), Sample, binary pack
+  __init__.py      # __version__ = '0.4.0'
+  writer.py        # ModWriter, Pattern (rows 1-64), Sample, binary pack
   utils.py         # square/triangle/noise generators
   mapping.py       # zone/gate/current → music, SYZYGY_PARTNERS, PENTATONIC_ADJACENCY
-  cli.py           # argparse entry with all flags
-  composer.py      # ModComposer high‑level API (NEW)
-  plugin.py        # Hermes slash + tool (schema extended with syzygy/entropy/etc)
+  cli.py           # argparse entry with all flags (Phase 2/3/4)
+  composer.py      # ModComposer high-level API
+  plugin.py        # Hermes slash + tool (extended schema)
   SKILL.md         # this document
+
+audio-renderer/  (sibling skill, imported by mod-writer Phase 4)
+  __init__.py      # exports render_mod_to_wav, generate_spectrogram, analyze_wav, describe_audio, palettes
+  renderer.py      # ffmpeg wrapper + delegates to analyzer for quality metrics
+  analyzer.py      # ffmpeg/ffprobe-based analysis pipeline (quality, spectral, onsets)
+  synth.py         # Pure‑Python 4‑voice resampling mixer (fallback)
+  palettes.py      # Zone colors (CCRU), ANSI FG, TD constants, ZONE_PROMPTS
+  SKILL.md         # audio-renderer documentation
 ```
 
 ---

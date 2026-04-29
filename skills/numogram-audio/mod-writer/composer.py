@@ -20,7 +20,7 @@ DIR = os.path.dirname(os.path.abspath(__file__))
 if DIR not in sys.path:
     sys.path.insert(0, DIR)
 
-from writer import ModWriter, Pattern, Sample, period_for_note
+from writer import ModWriter, Pattern, Sample, period_for_note, NOTE_OFFSET
 from utils import generate_square_wave, generate_triangle_wave, generate_noise
 from mapping import (
     note_and_octave_from_zone,
@@ -32,6 +32,27 @@ from mapping import (
 )
 
 
+
+
+# Triad-motif policy: maps motif name → list of candidate (root_note, quality, octave) tuples.
+# Candidates are ordered from most prototypical to fallback. Only the first candidate is used by default.
+TRIAD_MOTIF_POLICY = {
+    # Numogram core currents
+    'Sink':  [('D',  'minor', 3), ('B',  'minor', 3), ('G#', 'minor', 4)],
+    'Warp':  [('G#', 'minor', 3), ('G#', 'major', 3), ('F',  'minor', 4)],
+    'Hold':  [('C',  'minor', 3), ('C',  'major', 3), ('C#', 'minor', 3)],
+    'Rise':  [('C',  'minor', 3), ('C',  'major', 3), ('D',  'major', 3)],
+    'Void':  [],   # No triad implements Void; rests and sub-bass gaps required.
+
+    # Quadrivium musical systems (Book IV–V)
+    # Each entry maps a historical/theoretical concept to a triad whose
+    # digital‑root zone triple exemplifies the idea. Octave chosen to yield
+    # distinct zone sets (validated against the full triad zone table).
+    'Monochord': [('D', 'minor', 3)],   # Triangular syzygy cluster (1,3,6)
+    'Pythagorean': [('G', 'major', 3)], # Perfect fifth of C; zones (3,6,8) embody 3:2 drive
+    'Ptolemaic': [('C', 'major', 3)],   # Just intonation major triad (4:5:6); zones (1,5,8)
+    'Harmonic': [('C', 'major', 4)],    # Harmonic series partials 4,5,6 transposed; zones (2,4,8)
+}
 # Pentatonic adjacency for entropy: zone → neighboring zones (within same pentatonic slice)
 
 
@@ -82,8 +103,12 @@ class ModComposer:
         current: str,
         row: int,
         channel: int = 0,
+        *,
+        note: str | None = None,
+        octave: int | None = None,
     ):
-        """Place a note at (row, channel). Overwrites if same cell filled twice."""
+        """Place a note at (row, channel). Overwrites if same cell filled twice.
+        If note/octave are provided, they bypass zone→note mapping during build."""
         if not (1 <= zone <= 9):
             raise ValueError(f"zone must be 1-9, got {zone}")
         if not (0 <= gate <= 36):
@@ -94,11 +119,17 @@ class ModComposer:
             raise ValueError(f"row must be ≥ 0, got {row}")
         if not (0 <= channel <= 3):
             raise ValueError(f"channel must be 0-3, got {channel}")
+        if note is not None and note not in NOTE_OFFSET:
+            raise ValueError(f"invalid note name '{note}'")
+        if octave is not None and not (0 <= octave <= 8):
+            raise ValueError(f"octave must be 0-8, got {octave}")
 
         self.zone_grid[(row, channel)] = {
             'zone': zone,
             'gate': gate,
             'current': current,
+            'note': note,
+            'octave': octave,
         }
         self.used_channels.add(channel)
 
@@ -159,8 +190,14 @@ class ModComposer:
             zone = data['zone']
             gate = data['gate']
             current = data['current']
+            explicit_note = data.get('note')
+            explicit_octave = data.get('octave')
 
-            note, octave = note_and_octave_from_zone(zone)
+            if explicit_note is not None and explicit_octave is not None:
+                note = explicit_note
+                octave = explicit_octave
+            else:
+                note, octave = note_and_octave_from_zone(zone)
             sample_idx = CURRENT_TO_INSTRUMENT.get(current, 1)
             eff_cmd, eff_param = mod_effect_from_gate(gate)
 
@@ -241,7 +278,133 @@ class ModComposer:
             data['gate'] = (orig + delta) % 37
         return {'aq_value': aq_val, 'delta': delta, 'cells': len(self.zone_grid)}
 
-    # ── Output ────────────────────────────────────────────────────────────────
+    def apply_triad_motif(self, motif: str, rows: int = 16, gate: int = 0, current: str = 'A', channels: List[int] = [0, 1, 2]) -> Dict[str, int]:
+        """Populate the grid with a triad aligned to a numogram motif.
+        Overwrites any existing notes on the specified channels. Uses the
+        top-ranked candidate from TRIAD_MOTIF_POLICY.
+        """
+        if motif not in TRIAD_MOTIF_POLICY:
+            raise ValueError(f"Unknown motif '{motif}'. Choices: {list(TRIAD_MOTIF_POLICY.keys())}")
+        candidates = TRIAD_MOTIF_POLICY[motif]
+        if not candidates:
+            raise ValueError(f"No triad defined for motif '{motif}'")
+        root_note, quality, octave = candidates[0]
+
+        NOTE_OFFSET = {
+            'C':0, 'C#':1, 'Db':1, 'D':2, 'D#':3, 'Eb':3,
+            'E':4, 'F':5, 'F#':6, 'Gb':6, 'G':7, 'G#':8, 'Ab':8,
+            'A':9, 'A#':10, 'Bb':10, 'B':11
+        }
+
+        def digital_root(n: int) -> int:
+            while n > 9:
+                n = sum(int(d) for d in str(n))
+            return n
+
+        third_int = 3 if quality == 'minor' else 4 if quality == 'major' else None
+        if third_int is None:
+            raise ValueError(f"Unsupported triad quality '{quality}'")
+        fifth_int = 7
+
+        # --- Compute absolute semitone indices for each chord tone ---
+        root_semi = octave * 12 + NOTE_OFFSET[root_note]
+        third_semi = root_semi + third_int
+        fifth_semi = root_semi + fifth_int
+
+        zones = [
+            digital_root(root_semi + 1),
+            digital_root(third_semi + 1),
+            digital_root(fifth_semi + 1),
+        ]
+
+        # Derive individual octaves from absolute semitones
+        octave_root = root_semi // 12
+        octave_third = third_semi // 12
+        octave_fifth = fifth_semi // 12
+
+        ch0, ch1, ch2 = (channels[0], channels[1], channels[2]) if len(channels) >= 3 else (0, 1, 2)
+        # Compute actual note names for triad (chromatic), preserving octave structure.
+        chromatic = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+        def note_name(offset: int) -> str:
+            return chromatic[offset % 12]
+
+        root_offset = NOTE_OFFSET[root_note]
+        third_offset = (root_offset + third_int) % 12
+        fifth_offset = (root_offset + fifth_int) % 12
+
+        root_note_chroma = note_name(root_offset)
+        third_note_chroma = note_name(third_offset)
+        fifth_note_chroma = note_name(fifth_offset)
+
+        for r in range(rows):
+            self.add_note(zone=zones[0], gate=gate, current=current, row=r, channel=ch0,
+                          note=root_note_chroma, octave=octave_root)
+            self.add_note(zone=zones[1], gate=gate, current=current, row=r, channel=ch1,
+                          note=third_note_chroma, octave=octave_third)
+            self.add_note(zone=zones[2], gate=gate, current=current, row=r, channel=ch2,
+                          note=fifth_note_chroma, octave=octave_fifth)
+
+        return {
+            'motif': motif,
+            'root': root_note,
+            'quality': quality,
+            'octave': octave,
+            'zones': zones,
+            'rows': rows,
+            'channels': [ch0, ch1, ch2],
+        }
+
+    def inspect_motif(
+        self,
+        motif: str,
+        rows: int = 16,
+        gate: int = 0,
+        current: str = 'A',
+        channels: List[int] = [0, 1, 2],
+    ) -> Dict:
+        """Return a structured inspection bundle for a triad motif.
+        This method does NOT mutate the current composer instance. It creates
+        a fresh temporary composer, applies the motif, and extracts the internal
+        zone_grid into a human- and machine-readable structure.
+        """
+        # Use a fresh composer to avoid side-effects on self
+        clone = ModComposer(title=f"inspect-{motif}")
+        meta = clone.apply_triad_motif(motif, rows=rows, gate=gate, current=current, channels=channels)
+
+        # Build per-row grid view with period lookup
+        grid_view = []
+        for row in range(rows):
+            row_entry = {"row": row, "channels": {}}
+            for ch in channels:
+                key = (row, ch)
+                if key in clone.zone_grid:
+                    d = clone.zone_grid[key]
+                    note = d['note']
+                    octv = d['octave']
+                    period = period_for_note(note, octv) if note != 'REST' else 0
+                    row_entry['channels'][ch] = {
+                        'note': note,
+                        'octave': octv,
+                        'zone': d['zone'],
+                        'gate': d['gate'],
+                        'current': d['current'],
+                        'period': period,
+                    }
+                else:
+                    row_entry['channels'][ch] = None
+            grid_view.append(row_entry)
+
+        # Zone distribution summary
+        zone_counts: Dict[int, int] = {}
+        for d in clone.zone_grid.values():
+            z = d['zone']
+            zone_counts[z] = zone_counts.get(z, 0) + 1
+
+        return {
+            'meta': meta,
+            'grid': grid_view,
+            'zone_distribution': zone_counts,
+        }
 
     def _finalise_samples(self):
         """Call once before writing to ensure samples are added."""
