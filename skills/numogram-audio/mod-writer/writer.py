@@ -10,10 +10,24 @@ CHANNEL_COUNT = 4
 MAX_ORDERS = 128
 SAMPLE_HEADER_SIZE = 30   # bytes per sample entry
 SAMPLE_NAME_LEN = 22
+# Octave range actually used by the composer (triad-motif policies)
+# is 3–6, but the underlying period table supports a wider range.
+# PERIOD_TABLE contains 87 entries; see detailed comment below.
+PERIOD_TABLE_LENGTH = 87  # constant for bounds checking
 
-# Period table (C-2 to B-8 approx) — index = octave*12 + note_offset
+# Period table: 87 entries, index = octave*12 + note_offset (C=0..B=11).
 # Using Amiga PAL clock: 3546895 Hz / (2 * (period)) = note freq
 # Precomputed:
+# - Indices 0-86 correspond to notes C-0 up to D7 (the highest
+#   non-zero period).
+# - Index calculation: idx = octave * 12 + NOTE_OFFSET[note]
+# - If idx >= PERIOD_TABLE_LENGTH, it is clamped to 86, which
+#   yields period 0 (no note).
+# - Period 0 is used to encode empty cells; therefore notes
+#   beyond D7 (or with negative octave) are effectively rests.
+# - The table values are独特 (no duplicates until the final zero),
+#   but different spellings of the same pitch (e.g., C#/Db)
+#   share the same offset and thus same period — expected.
 PERIOD_TABLE = [
     1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016,  960,  907,
      856,  808,  762,  720,  678,  640,  604,  570,  538,  508,  480,  453,
@@ -173,6 +187,11 @@ def noise_wave(duration: float = 0.1, sample_rate: int = 8000) -> bytes:
     return bytes(random.getrandbits(8) for _ in range(n))
 
 # ── Numogram mappings ─────────────────────────────────────────────────────
+"""Protracker period lookup with bounds clamping.
+   index = octave*12 + NOTE_OFFSET[note]. If index >= PERIOD_TABLE_LENGTH,
+   it is clamped to the last entry (PERIOD_TABLE[-1] == 0), which encodes
+   a rest. This prevents IndexError but may silently drop very high notes.
+   """
 def period_for_note(note: str, octave: int) -> int:
     """Look up Protracker period for note/octave (C-0 = index 0)."""
     offset = NOTE_OFFSET.get(note.upper(), 0)
