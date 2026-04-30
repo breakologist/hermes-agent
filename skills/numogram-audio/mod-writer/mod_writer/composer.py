@@ -55,9 +55,10 @@ TRIAD_MOTIF_POLICY = {
 class ModComposer:
     """Compose tracker modules via an event list, then encode to .mod binary."""
 
-    def __init__(self, title: str = "HermesComposition"):
+    def __init__(self, title: str = "HermesComposition", just_intonation: bool = False):
         self.title = title[:20]
         self.writer = ModWriter(title=self.title)
+        self.just_intonation = just_intonation
 
         # Generate the three base samples once
         self._samples_built = False
@@ -101,6 +102,7 @@ class ModComposer:
         *,
         note: str | None = None,
         octave: int | None = None,
+        period_override: int | None = None,
     ):
         """Place a note at (row, channel). Overwrites if same cell filled twice.
         If note/octave are provided, they bypass zone→note mapping during build."""
@@ -119,13 +121,16 @@ class ModComposer:
         if octave is not None and not (0 <= octave <= 8):
             raise ValueError(f"octave must be 0-8, got {octave}")
 
-        self.zone_grid[(row, channel)] = {
+        entry = {
             'zone': zone,
             'gate': gate,
             'current': current,
             'note': note,
             'octave': octave,
         }
+        if period_override is not None:
+            entry['period_override'] = period_override
+        self.zone_grid[(row, channel)] = entry
         self.used_channels.add(channel)
 
     def add_sequence(
@@ -143,6 +148,34 @@ class ModComposer:
             self.add_note(z, g, cur, start_row + i, channel)
 
     # ── Pattern construction ──────────────────────────────────────────────────
+
+    def apply_seed_pattern(
+        self,
+        zone: int,
+        gate: int,
+        current: str,
+        rows: int,
+        triangular: bool = False,
+        syzygy: bool = False,
+        syzygy_channels: int = 3,
+        entropy: float | None = None,
+        entropy_seed: int | None = None,
+        aq_seed: str | None = None,
+    ) -> None:
+        """Populate the composer with a single-zone seed pattern and optional transforms.
+
+        This method mirrors the CLI's non-triad advanced branch; extracted so
+        SongBuilder can reuse it without duplication.
+        """
+        for r in range(rows):
+            self.add_note(zone, gate, current, row=r, channel=0)
+        if syzygy:
+            self.apply_syzygy_harmony(partner_channels=list(range(1, syzygy_channels + 1)))
+        if entropy is not None:
+            self.inject_entropy(rate=entropy, rng_seed=entropy_seed)
+        if aq_seed:
+            self.constrain_gates_by_aq(aq_seed)
+        self._triangular = triangular
 
     def _compute_max_row(self) -> int:
         if not self.zone_grid:
@@ -345,13 +378,32 @@ class ModComposer:
         third_note_chroma = note_name(third_offset)
         fifth_note_chroma = note_name(fifth_offset)
 
+        # Compute period overrides for just intonation if enabled
+        third_override = None
+        fifth_override = None
+        if self.just_intonation:
+            root_period_base = period_for_note(root_note, octave_root)
+            if quality == 'major':
+                third_ratio = 5 / 4
+            else:  # minor
+                third_ratio = 6 / 5
+            fifth_ratio = 3 / 2
+            third_override = int(round(root_period_base / third_ratio))
+            fifth_override = int(round(root_period_base / fifth_ratio))
+            if third_override < 1:
+                third_override = 1
+            if fifth_override < 1:
+                fifth_override = 1
+
         for r in range(rows):
             self.add_note(zone=zones[0], gate=gate, current=current, row=r, channel=ch0,
                           note=root_note_chroma, octave=octave_root)
             self.add_note(zone=zones[1], gate=gate, current=current, row=r, channel=ch1,
-                          note=third_note_chroma, octave=octave_third)
+                          note=third_note_chroma, octave=octave_third,
+                          period_override=third_override)
             self.add_note(zone=zones[2], gate=gate, current=current, row=r, channel=ch2,
-                          note=fifth_note_chroma, octave=octave_fifth)
+                          note=fifth_note_chroma, octave=octave_fifth,
+                          period_override=fifth_override)
 
         return {
             'motif': motif,

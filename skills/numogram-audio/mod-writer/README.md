@@ -30,8 +30,26 @@ Validation:
 - AQ seeding (`--aq-seed`)
 - Period table clamping warnings (`--warn-clamp`)
 - Full-track orchestration (`--song` JSON, `SongBuilder` API)
+  - Global just-intonation flag (`--just-intonation`) propagates to all sections
+  - Automatic manifest generation (`--song-manifest`)
 - Audio pipeline (`--render`, `--spectrogram`, `--analyze`, `--manifest`, `--json`)
 - Canonical vectors (24 exhaustive triads) in data/
+
+## Just Intonation
+
+Use `--just-intonation` to tune triad motifs to pure just intervals:
+
+- Major triad: root (1/1), major third (5/4), perfect fifth (3/2)
+- Minor triad: root (1/1), minor third (6/5), perfect fifth (3/2)
+
+The root note remains in equal temperament; only the third and fifth are period‑adjusted to the simple ratios.
+
+Example:
+
+```bash
+mod-writer --triad-motif Ptolemaic --just-intonation --rows 64 --output ptolemaic-just.mod
+```
+
 
 ## Architecture
 

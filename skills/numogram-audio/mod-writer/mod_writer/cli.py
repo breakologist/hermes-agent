@@ -206,13 +206,15 @@ def main():
     p.add_argument('--bpm', type=int, default=125,
                   help='Global tempo for the song (stored in title/metadata)')
     p.add_argument('--warn-clamp', action='store_true', help='Warn if any notes exceed period table range and get clamped to period 0')
+    p.add_argument('--just-intonation', action='store_true', help='Use just intonation ratios (5/4 or 6/5 for third, 3/2 for fifth) in triad motifs')
+    p.add_argument('--song-manifest', action='store_true', help='Write JSON manifest for song mode alongside .mod')
 
 
     args = p.parse_args()
 
     # ── Phase 2c: standalone triad-motif inspection (dry-run) ─────────────────────
     if args.inspect_motif:
-        comp = ModComposer(title=args.title)
+        comp = ModComposer(title=args.title, just_intonation=args.just_intonation)
         result = comp.inspect_motif(
             motif=args.inspect_motif,
             rows=args.rows,
@@ -408,6 +410,7 @@ def main():
         builder = SongBuilder(
             title = arrangement.get('title', 'Song'),
             bpm   = arrangement.get('bpm', args.bpm),
+            just_intonation = args.just_intonation,
         )
         builder.from_dict(arrangement)
         builder.write(args.output, verbose=True)
@@ -415,11 +418,18 @@ def main():
         if args.warn_clamp:
             print("⚠ --warn-clamp not yet implemented in song mode (section-level TBD)")
 
-        # Phase 4 pipeline (if requested) would go here per-section in future
+        # Phase 4 pipeline (render/spectrogram/play/analyze)
+        _run_phase4(args.output, args)
+
+        if args.song_manifest:
+            manifest_path = args.output.replace('.mod', '.json')
+            builder.write_manifest(manifest_path)
+            print(f"✔ Wrote song manifest: {manifest_path}")
+
         sys.exit(0)
 
     if advanced:
-        comp = ModComposer(title=args.title)
+        comp = ModComposer(title=args.title, just_intonation=args.just_intonation)
         if args.triad_motif:
             # Triad‑motif generates its own note texture; ignore --zone/--gate/--current for channel 0
             meta = comp.apply_triad_motif(
@@ -440,15 +450,18 @@ def main():
 
 
         else:
-            # Build seed sequence across channel 0
-            for r in range(args.rows):
-                comp.add_note(args.zone, args.gate, args.current, row=r, channel=0)
-            if args.syzygy:
-                comp.apply_syzygy_harmony(partner_channels=list(range(1, args.syzygy_channels+1)))
-            if args.entropy is not None:
-                comp.inject_entropy(rate=args.entropy, rng_seed=args.entropy_seed)
-            if args.aq_seed:
-                comp.constrain_gates_by_aq(args.aq_seed)
+            comp.apply_seed_pattern(
+                zone=args.zone,
+                gate=args.gate,
+                current=args.current,
+                rows=args.rows,
+                triangular=args.triangular,
+                syzygy=args.syzygy,
+                syzygy_channels=args.syzygy_channels,
+                entropy=args.entropy,
+                entropy_seed=args.entropy_seed,
+                aq_seed=args.aq_seed,
+            )
         # Common flags
         comp._triangular = args.triangular
         comp.write_mod(args.output)

@@ -17,9 +17,10 @@ from .composer import ModComposer
 from .writer import ModWriter, Sample
 
 class SongBuilder:
-    def __init__(self, title: str = "Song", bpm: int = 125):
+    def __init__(self, title: str = "Song", bpm: int = 125, just_intonation: bool = False):
         self.title   = title[:20]
         self.bpm     = bpm
+        self.just_intonation = just_intonation
         self.sections: List[Dict[str, Any]] = []
         self._pattern_cache: Dict[str, "Pattern"] = {}
         self._sample_counter = 0
@@ -126,7 +127,7 @@ class SongBuilder:
                 if verbose:
                     print(f"  Section {i} (cache): {param_key[:8]}")
             else:
-                comp = ModComposer(title=uniq_title)
+                comp = ModComposer(title=uniq_title, just_intonation=self.just_intonation)
                 self._populate(comp, sec)
                 pat  = comp.build_patterns_from_grid(length=sec['rows'], triangular=sec['triangular'])
                 self._pattern_cache[param_key] = pat.clone()
