@@ -380,6 +380,114 @@ def _reports_root() -> Path:
     return root
 
 
+def _classify_removed_skills(
+    removed: List[str],
+    added: List[str],
+    after_names: Set[str],
+    tool_calls: List[Dict[str, Any]],
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Split ``removed`` into consolidated vs pruned.
+
+    A removed skill is "consolidated" when the curator absorbed its content
+    into another skill (an umbrella) during this run — the content still
+    lives, just under a different name. A removed skill is "pruned" when the
+    curator archived it for staleness/irrelevance without preserving its
+    content elsewhere.
+
+    Heuristic: scan this run's ``skill_manage`` tool calls and look for
+    ``write_file``/``patch``/``create``/``edit`` actions whose target skill
+    (the ``name`` argument) is NOT the removed skill and whose
+    ``file_path`` / ``file_content`` / ``content`` arguments reference the
+    removed skill's name. That's the textbook "absorbed into umbrella"
+    signal. Ties are broken by first-match (earliest tool call wins).
+
+    Returns ``{"consolidated": [{"name", "into", "evidence"}, ...],
+               "pruned":       [{"name"}, ...]}``.
+    """
+    consolidated: List[Dict[str, Any]] = []
+    pruned: List[Dict[str, Any]] = []
+
+    # Pre-parse tool calls: we only care about skill_manage.
+    parsed_calls: List[Dict[str, Any]] = []
+    for tc in tool_calls or []:
+        if not isinstance(tc, dict):
+            continue
+        if tc.get("name") != "skill_manage":
+            continue
+        raw = tc.get("arguments") or ""
+        # Arguments can be a JSON string (standard) or a dict (defensive).
+        args: Dict[str, Any] = {}
+        if isinstance(raw, dict):
+            args = raw
+        elif isinstance(raw, str):
+            try:
+                args = json.loads(raw)
+            except Exception:
+                # Truncated or malformed — fall back to substring match on
+                # the raw string so we still catch the common case.
+                args = {"_raw": raw}
+        if not isinstance(args, dict):
+            continue
+        parsed_calls.append(args)
+
+    # Build a set of "destination" skill names: anything still present after
+    # the run plus anything newly added this run. A removed skill being
+    # referenced from one of these is the consolidation signal.
+    destinations = set(after_names) | set(added or [])
+
+    for name in removed:
+        if not name:
+            continue
+        into: Optional[str] = None
+        evidence: Optional[str] = None
+
+        # Normalise name variants we'll search for in path/content strings.
+        needles = {name, name.replace("-", "_"), name.replace("_", "-")}
+
+        for args in parsed_calls:
+            target = args.get("name")
+            if not isinstance(target, str) or not target:
+                continue
+            # A call that operates on the removed skill itself isn't
+            # consolidation evidence.
+            if target == name:
+                continue
+            # The target must be a surviving or newly-created skill —
+            # otherwise we're pointing to a skill that doesn't exist.
+            if target not in destinations:
+                continue
+
+            # Look for the removed skill's name in file_path / content / raw.
+            haystacks: List[str] = []
+            for key in ("file_path", "file_content", "content", "new_string", "_raw"):
+                v = args.get(key)
+                if isinstance(v, str):
+                    haystacks.append(v)
+            hit = False
+            for hay in haystacks:
+                for needle in needles:
+                    if needle and needle in hay:
+                        hit = True
+                        evidence = (
+                            f"skill_manage action={args.get('action', '?')} "
+                            f"on '{target}' referenced '{name}' "
+                            f"in {hay[:80]}"
+                        )
+                        break
+                if hit:
+                    break
+            if hit:
+                into = target
+                break
+
+        if into:
+            consolidated.append({"name": name, "into": into, "evidence": evidence})
+        else:
+            pruned.append({"name": name})
+
+    return {"consolidated": consolidated, "pruned": pruned}
+
+
 def _write_run_report(
     *,
     started_at: datetime,
@@ -437,6 +545,19 @@ def _write_run_report(
         name = tc.get("name", "unknown")
         tc_counts[name] = tc_counts.get(name, 0) + 1
 
+    # Split "removed" into consolidated (absorbed into umbrella) vs pruned
+    # (archived for staleness, content not preserved elsewhere). The old
+    # "Skills archived" section lumped both together, which misled users
+    # into thinking consolidated skills had been pruned.
+    classification = _classify_removed_skills(
+        removed=removed,
+        added=added,
+        after_names=after_names,
+        tool_calls=llm_meta.get("tool_calls", []) or [],
+    )
+    consolidated = classification["consolidated"]
+    pruned = classification["pruned"]
+
     payload = {
         "started_at": started_at.isoformat(),
         "duration_seconds": round(elapsed_seconds, 2),
@@ -449,11 +570,15 @@ def _write_run_report(
             "delta": len(after_names) - len(before_names),
             "archived_this_run": len(removed),
             "added_this_run": len(added),
+            "consolidated_this_run": len(consolidated),
+            "pruned_this_run": len(pruned),
             "state_transitions": len(transitions),
             "tool_calls_total": sum(tc_counts.values()),
         },
         "tool_call_counts": tc_counts,
         "archived": removed,
+        "consolidated": consolidated,
+        "pruned": [p["name"] for p in pruned],
         "added": added,
         "state_transitions": transitions,
         "llm_final": llm_meta.get("final", ""),
@@ -508,7 +633,7 @@ def _render_report_markdown(p: Dict[str, Any]) -> str:
     lines.append("## Auto-transitions (pure, no LLM)\n")
     lines.append(f"- checked: {auto.get('checked', 0)}")
     lines.append(f"- marked stale: {auto.get('marked_stale', 0)}")
-    lines.append(f"- archived: {auto.get('archived', 0)}")
+    lines.append(f"- archived (no LLM, pure time-based staleness): {auto.get('archived', 0)}")
     lines.append(f"- reactivated: {auto.get('reactivated', 0)}")
     lines.append("")
 
@@ -517,24 +642,52 @@ def _render_report_markdown(p: Dict[str, Any]) -> str:
     lines.append("## LLM consolidation pass\n")
     lines.append(f"- tool calls: **{counts.get('tool_calls_total', 0)}** "
                  f"(by name: {', '.join(f'{k}={v}' for k, v in sorted(tc_counts.items())) or 'none'})")
-    lines.append(f"- archived this run: **{counts.get('archived_this_run', 0)}**")
+    lines.append(f"- consolidated into umbrellas: **{counts.get('consolidated_this_run', 0)}**")
+    lines.append(f"- pruned (archived for staleness): **{counts.get('pruned_this_run', 0)}**")
     lines.append(f"- new skills this run: **{counts.get('added_this_run', 0)}**")
     lines.append(f"- state transitions (active ↔ stale ↔ archived): "
                  f"**{counts.get('state_transitions', 0)}**")
     lines.append("")
 
-    # Archived list
-    archived = p.get("archived") or []
-    if archived:
-        lines.append(f"### Skills archived ({len(archived)})\n")
-        lines.append("_Archived skills are at `~/.hermes/skills/.archive/`. "
-                     "Restore any via `hermes curator restore <name>`._\n")
-        # Show first 50 inline, note truncation after that
+    # Consolidated list — content absorbed into an umbrella. The directory
+    # on disk still lives under ~/.hermes/skills/.archive/ (every removal is
+    # recoverable by design), but the "live" content for these skills
+    # continues to exist inside the destination umbrella.
+    consolidated = p.get("consolidated") or []
+    if consolidated:
+        lines.append(f"### Consolidated into umbrella skills ({len(consolidated)})\n")
+        lines.append(
+            "_These skills were **absorbed into another skill** during this run — "
+            "their content still lives, just under a different name. "
+            "The original directory was moved to `~/.hermes/skills/.archive/` for "
+            "safety and can be restored via `hermes curator restore <name>` if the "
+            "consolidation was wrong._\n"
+        )
         SHOW = 50
-        for n in archived[:SHOW]:
+        for entry in consolidated[:SHOW]:
+            name = entry.get("name", "?")
+            into = entry.get("into", "?")
+            lines.append(f"- `{name}` → merged into `{into}`")
+        if len(consolidated) > SHOW:
+            lines.append(f"- … and {len(consolidated) - SHOW} more (see `run.json`)")
+        lines.append("")
+
+    # Pruned list — archived without consolidation. These are the
+    # "stale skill pruned" cases the UI should mark clearly.
+    pruned = p.get("pruned") or []
+    if pruned:
+        lines.append(f"### Pruned — archived for staleness ({len(pruned)})\n")
+        lines.append(
+            "_These skills were archived without being merged into an umbrella "
+            "(e.g. stale, unused, or judged irrelevant). "
+            "Directories live under `~/.hermes/skills/.archive/`. "
+            "Restore any via `hermes curator restore <name>`._\n"
+        )
+        SHOW = 50
+        for n in pruned[:SHOW]:
             lines.append(f"- `{n}`")
-        if len(archived) > SHOW:
-            lines.append(f"- … and {len(archived) - SHOW} more (see `run.json` for the full list)")
+        if len(pruned) > SHOW:
+            lines.append(f"- … and {len(pruned) - SHOW} more (see `run.json`)")
         lines.append("")
 
     # Added list
