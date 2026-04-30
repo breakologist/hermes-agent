@@ -59,6 +59,42 @@ song.py    – SongBuilder (multi-section orchestration)
 mapping.py – zone/note/gate mappings
 utils.py   – waveform generators
 
+
+## Classifier — MIR to AQ Prediction (Phase 3)
+
+> **Status:** Experimental. Requires `pip install -e .[classifier]`.
+
+The classifier module (`mod_writer.classifier`) learns to predict a track's AQ value from MIR features. It's a proof-of-concept "ears that hear the numogram": audio in, zone/gate candidates out.
+
+### Usage
+
+```bash
+# Profile an audio file and predict its AQ
+mod-writer --classify /path/to/audio.wav
+
+# Batch classify a directory
+mod-writer --classify-dir /path/to/music_collection/
+
+# After training, generate synthetic MODs for a target AQ and verify
+mod-writer --aq-seed 42 --render --analyze
+```
+
+### How it works
+
+1. **Synthetic dataset** — 100 MOD files (AQ 0-99, zone=1) rendered to WAV, profiled via `mir_profiler` → feature vectors
+2. **Training** — `MLPRegressor(hidden=(128,64))` learns mapping `(29 MIR features) → AQ`
+3. **Evaluation** — held-out test accuracy ~10% within ±5 AQ, zone accuracy ~10% (baseline)
+4. **Artifacts** — `mod_writer/classifier/artifacts/{scaler.joblib,model.joblib}`
+
+### Current limitations
+
+- Synthetic training data uses only square/triangle/noise waveforms — extremely limited timbre
+- MIR features capture spectral/rhythmic content, not symbolic structure
+- Model accuracy near chance on synthetic data; generalization to real audio unproven
+- Zone prediction from AQ is indirect (regression → rounding)
+
+Next steps (Phase 3.3): evaluate on real audio collection, explore better models (RandomForest, gradient boosting), enrich features (musicnn embeddings). See `run_phase3.py` for full pipeline.
+
 ## License
 
 MIT code, CC0 data/outputs. See LICENSE and CREDITS.md.
