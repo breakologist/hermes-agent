@@ -30,6 +30,14 @@ from mod_writer.mapping import (
 # Import triad‑motif policy to expose available motif names as cli choices
 from mod_writer.composer import TRIAD_MOTIF_POLICY, ModComposer
 
+# MIR audio profiling (Phase 6 — optional, graceful degradation)
+try:
+    from mod_writer.mir_profiler import MIRFeatureExtractor
+    _MIR_AVAILABLE = True
+except ImportError as e:
+    _MIR_AVAILABLE = False
+    _MIR_IMPORT_ERROR = str(e)
+
 # Audio rendering & analysis (Phase 4)
 AUDIO_RENDERER_DIR = os.path.normpath(os.path.join(DIR, '..', '..', 'audio-renderer'))
 if AUDIO_RENDERER_DIR not in sys.path:
@@ -201,6 +209,18 @@ def main():
     # Phase 4.5 — auditory verification & description
     p.add_argument('--verify', action='store_true', help='Run quality checks; exit non-zero on clipping/DC offset')
     p.add_argument('--describe', action='store_true', help='Print a textual portrait of the rendered sound')
+    # Phase 6 — MIR audio profiling (optional, see mod-writer-mir-profile.md)
+    p.add_argument('--profile-audio', metavar='AUDIO_FILE',
+                   help='Extract full MIR feature profile from an audio file (requires optional MIR deps). Prints JSON to stdout.')
+    p.add_argument('--mir-seed', metavar='AUDIO_FILE',
+                   help='Derive an AQ seed from audio fingerprint, then generate a module (implies --aq-seed). '
+                        'Uses the same feature profile as --profile-audio.')
+    p.add_argument('--from-audio', metavar='AUDIO_FILE',
+                   help='[Prototype] Transcribe audio directly into a tracker pattern (Phase 7a). '
+                        'Captures onset peaks and spectral allocation as notes.')
+    p.add_argument('--accompaniment', metavar='AUDIO_FILE',
+                   help='[Prototype] Generate a complementary module that fills frequency gaps around the given audio (Phase 7b).')
+
     p.add_argument('--song', metavar='ARRANGEMENT.json',
                   help='Load multi-section arrangement from JSON file')
     p.add_argument('--bpm', type=int, default=125,
@@ -394,7 +414,35 @@ def main():
         print(json.dumps(report, indent=2))
         sys.exit(0 if report['match'] else 1)
 
-    # Phase 2b/3: if any advanced flag present, use ModComposer
+    # ── Phase 6: MIR audio profiling ——————————————————————————————————————————
+    if getattr(args, 'profile_audio', None):
+        if not _MIR_AVAILABLE:
+            print("❌ MIR profiling requires optional extras: pip install mod-writer[mir]")
+            print(f"   Import error: {_MIR_IMPORT_ERROR}")
+            sys.exit(1)
+        profile = MIRFeatureExtractor.extract(args.profile_audio)
+        print(json.dumps(profile, indent=2))
+        sys.exit(0)
+
+    if getattr(args, 'mir_seed', None):
+        if not _MIR_AVAILABLE:
+            print("❌ MIR profiling requires optional extras: pip install mod-writer[mir]")
+            sys.exit(1)
+        profile = MIRFeatureExtractor.extract(args.mir_seed)
+        derived_seed = MIRFeatureExtractor.profile_to_seed(profile)
+        args.aq_seed = derived_seed
+        print(f"🔮 Derived AQ seed from audio fingerprint: {args.aq_seed}")
+
+    # ── Phase 7: Audio transcription (prototype stubs) ————————————————————————
+    if getattr(args, 'from_audio', None):
+        print("⚠ --from-audio not yet implemented (Phase 7a, planned)")
+        sys.exit(1)
+
+    if getattr(args, 'accompaniment', None):
+        print("⚠ --accompaniment not yet implemented (Phase 7b, planned)")
+        sys.exit(1)
+
+        # Phase 2b/3: if any advanced flag present, use ModComposer
     advanced = any([
         args.syzygy,
         args.entropy is not None,

@@ -290,6 +290,85 @@ SongBuilder(title="My Track", bpm=120)\
 Status: ✓ complete (v0.6.0)
 
 ---
+
+---
+
+## Phase 6 — MIR Audio Profiling (in progress)
+
+*Optional, modular music information retrieval integration.*
+
+### Phase 6a — Optional Dependency Stack (complete)
+
+- `librosa` & `madmom` as optional extras (`pip install mod-writer[mir]`)
+- Graceful degradation: missing deps → fallback to baseline analysis
+- Core API unchanged; all new features behind availability flags
+
+Status: ✓ scaffolding complete (v0.6.1-plan)
+
+### Phase 6b — Unified MIR Feature Schema (pending)
+
+Define a single JSON feature envelope that normalises outputs from:
+- Librosa (chroma, beat, chord, structural segmentation)
+- Madmom (DBN beat & downbeat tracking with confidence)
+- Essentia (2000+ low/mid/high-level descriptors)
+- musicnn / openl3 (deep tags & embeddings)
+
+Schema fields:
+```json
+{
+  "lowlevel": { "mfcc": [...], "spectral_contrast": [...], ... },
+  "midlevel": { "bpm": 120.5, "key": "C", "chords": [...], "beats": [...] },
+  "highlevel": { "genre": {"electronic": 0.87}, "instruments": {...}, "mood": {...} },
+  "metadata": { "duration": 49.2, "sample_rate": 44100, "channels": 2 }
+}
+```
+
+### Phase 6c — CLI & API Surface (pending)
+
+- `--profile-audio FILE` → print JSON feature report
+- `--mir-seed FILE` → compute features → hash → AQ seed → generate
+- `SongBuilder.load_audio_profile(FILE)` → constrain sections by audio structure
+- Python API: `MIRFeatureExtractor.extract(path) -> FeatureSet`
+
+### Phase 6d — Essentia Premium Path (pending)
+
+- Wire `essentia.standard.MusicExtractor` as a high‑accuracy branch
+- Map Essentia's descriptor space into unified schema
+- Document install: `apt-get install libessentia-dev` or use `pip` wheel (Python 3.11+)
+
+### Phase 6e — Deep Tagging (pending)
+
+- `musicnn` inference → instrument/genre/mood tags
+- `openl3` embedding → for future k‑NN classification
+- Cache predictions to avoid recomputation
+
+### Phase 6f — Audio → AQ Mapping Model (pending)
+
+- Build corpus: MIR features on all existing `.mod` examples + their AQ seeds
+- Train lightweight regressor (random forest / MLP) to predict zone/gate/current
+- Save model `models/mir2aq.pkl`; load automatically when `--mir-seed` used
+- Invert: feed any audio → predicted AQ → mod that *translates* that audio's structure
+
+Status: ⬜ planned (v0.6.1/v0.7.0)
+
+---
+
+## Phase 7 — Reverse Transcription & Accompaniment (planned)
+
+### Phase 7a — `--from-audio` pattern synthesis (pending)
+
+- Map RMS onset peaks → pattern rows
+- Map dominant spectral band per peak → channel assignment (0–5)
+- Map band energy → note velocity; band centre frequency → period
+- Output: 32‑row, 6‑channel transcription of the input's transient structure
+
+### Phase 7b — Accompaniment / Counterpoint (pending)
+
+- `--accompaniment FILE` → generate a second module that *fills* spectral gaps
+- Use the input's FFT profile to mask frequency bands; write complementary material
+
+Status: ⬜ planned
+
 ## Phase 6 — Just Intonation Mode (complete)
 
 When generating triad motifs, the default tuning uses equal temperament (each

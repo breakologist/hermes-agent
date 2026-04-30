@@ -63,3 +63,32 @@ utils.py   – waveform generators
 
 MIT code, CC0 data/outputs. See LICENSE and CREDITS.md.
 
+
+## Optional Dependencies (Enhanced Audio Analysis)
+
+The base `mod-writer` installation includes basic audio analysis via `numpy` and
+`scipy`. For *deeper ears* — instrument recognition, genre tagging, beat tracking,
+chord estimation — install optional extras:
+
+```bash
+# Basic MIR stack (recommended)
+pip install mod-writer[mir]
+
+# Premium stack (all features: Essentia, musicnn, madmom)
+pip install mod-writer[all]
+```
+
+| Extra | Provides | Size |
+|-------|----------|------|
+| `mir` | `librosa`, `madmom` (beat tracking, chroma, onset profiling) | ~50 MB |
+| `essentia` | `essentia` (2000+ features, instrument/genre extraction) | ~120 MB |
+| `highlevel` | `musicnn`, `openl3` (deep tagging & embeddings) | ~300 MB |
+| `all` | Everything above | ~500 MB |
+
+> **Note:** Optional dependencies are *gracefully degraded* — if a library is not
+> installed, `mod-writer` falls back to simpler algorithms or skips that analysis
+> category. No crashes, no mandatory heavy installs.
+
+Once installed, use `--profile-audio FILE` or `--mir-seed FILE` to unlock
+MIR-powered generation.
+
