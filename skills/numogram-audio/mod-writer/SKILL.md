@@ -403,6 +403,21 @@ Status: ✓ complete (v0.6.0)
 
 ---
 
+## Phase 3.3 — Real Audio Validation (complete)
+
+Real-audio prediction pipeline implemented and tested on 10 tracks from music
+collection (Kimberly Steele, Gregorian Chant, Current 93, Nurse With Wound,
+Death's Dynamic Shroud, etc.).
+
+- Script: `eval_real_audio.py` — transcodes via ffmpeg, profiles, predicts AQ
+- Results: 9/10 tracks → Zone 6 (Venus), 1 track → Zone 4 (Mercury)
+- Artifact: `real_audio_predictions.csv`
+- Observation: Predictions cluster near synthetic training mean (~50–58 AQ);
+  model lacks discriminative power due to uniform synthetic timbre
+
+Next: expand synthetic dataset to multiple zones, switch to delta prediction
+(0-36 gate shift), or curate real-labeled training set.
+
 ## Phase 4 — Audio Rendering & Spectral Analysis (complete)
 
 The `audio-renderer` skill provides the perception layer: convert binary `.mod`

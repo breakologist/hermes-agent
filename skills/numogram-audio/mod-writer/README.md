@@ -95,6 +95,39 @@ mod-writer --aq-seed 42 --render --analyze
 
 Next steps (Phase 3.3): evaluate on real audio collection, explore better models (RandomForest, gradient boosting), enrich features (musicnn embeddings). See `run_phase3.py` for full pipeline.
 
+## Phase 3.3 — Real Audio Validation
+
+A proof-of-concept end-to-end pipeline has been run on 10 tracks from the
+personal music collection. Results cached at
+`mod_writer/classifier/artifacts/real_audio_predictions.csv`.
+
+### Running it yourself
+
+```bash
+# Ensure classifier deps installed
+pip install -e .[classifier]
+
+# Evaluate a directory of audio files (any format)
+python eval_real_audio.py   # uses curated list from MUSIC_ROOT
+```
+
+The script:
+1. Walks a curated list of esoteric/ambient/experimental artists
+2. Transcodes MP3/FLAC → WAV via `ffmpeg`
+3. Extracts MIR features (`mir_profiler`, Essentia low/mid level)
+4. Predicts AQ via trained `MLPRegressor`
+5. Writes CSV: `file, predicted_aq, zone, duration_s, bpm, key, scale`
+
+**Observations from the first run (10 tracks):**
+- 9/10 tracks predicted **Zone 6 (Venus)**; 1 track (Gregorian Chant Rosary) → **Zone 4 (Mercury)**
+- All AQ values clustered ~50–58 (near training set mean ~49.5)
+- BPM and key often unavailable for esoteric/ambient drone works
+- The model has not learned meaningful discrimination yet — expected given synthetic-only training
+
+**Next:** add more diverse synthetic data (multiple zones), switch to predicting delta (0-36), or train on real-labeled data via filename heuristic.
+
+---
+
 ## License
 
 MIT code, CC0 data/outputs. See LICENSE and CREDITS.md.
