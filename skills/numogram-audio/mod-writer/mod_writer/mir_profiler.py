@@ -262,6 +262,33 @@ class MIRFeatureExtractor:
             'sources': sources,
         }
 
+        # ── Optional: full Essentia MusicExtractor pool ───────────────────────
+        if use_all and _HAS_ESSENTIA:
+            try:
+                me = es.MusicExtractor(
+                    lowlevelStats=['mean', 'stdev'],
+                    rhythmStats=['mean'],
+                    tonalStats=['mean'],
+                    highlevel=[],
+                )
+                pool, _pool_frames = me(y)
+                # Flatten every *scalar* descriptor into a flat dict
+                essentia_features: Dict[str, float] = {}
+                for name in pool.descriptorNames():
+                    val = pool[name]
+                    # Essentia returns vectors for some descriptors; skip non-scalars
+                    if isinstance(val, (float, int, np.floating, np.integer)):
+                        essentia_features[name] = float(val)
+                    elif isinstance(val, np.ndarray) and val.size == 1:
+                        essentia_features[name] = float(val.item())
+                    # vectors/multi-dim descriptors are skipped for now
+                profile['essentia_features'] = essentia_features
+                profile['sources']['essentia_pool'] = True
+            except Exception as e:
+                profile['essentia_features'] = {}
+                profile['sources']['essentia_pool'] = False
+                profile['essentia_error'] = str(e)
+
         return profile
 
     @staticmethod

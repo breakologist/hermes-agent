@@ -1,0 +1,113 @@
+{
+  "title": "mod-writer v0.7.0 \u2014 Phase 4: Dataset Diversification & Feature Expansion",
+  "created": "2026-04-30",
+  "status": "Phase 4 in progress \u2014 4.1 multi-zone dataset building, 4.2 feature expansion in progress",
+  "parent_plan": "mod-writer-phase3-classifier-2026-05-01.json",
+  "phases_completed": 3,
+  "total_phases": 5,
+  "phases": [
+    {
+      "id": "phase-4.1",
+      "name": "Multi-Zone Synthetic Dataset",
+      "description": "Expand synthetic training data from 100 examples (zone=1 only) to balanced 9-zone dataset. ~900 examples total (100 per zone) or ~3700 (100 per delta 0-36). This is the single highest-accuracy lever: zone-balanced data should push zone accuracy from ~10% \u2192 40\u201360%.",
+      "tasks": [
+        "Extend data_collector.build_dataset() to accept zones=[1..9] or delta=True flag (done)",
+        "Generate per-zone datasets: SongBuilder(zone=z, aq_seed=s) for z in 1..9, s in 0..99",
+        "Store zone and delta labels in NPZ alongside X/y (zone: int 1..9, delta: int 0..36)",
+        "Optionally generate full 37-delta dataset (aq=0..999) \u2192 ~3700 examples; downsample to balanced for training",
+        "Add dataset manifest: dataset_zones.npz, dataset_delta.npz with metadata describing distribution",
+        "Update classifier trainer to accept zone-balanced data and compute stratified train/test splits",
+        "Retrain baseline MLPRegressor on multi-zone data; evaluate zone accuracy",
+        "If accuracy still low, consider zone-classifier (9-class softmax) instead of regression"
+      ],
+      "done": [],
+      "blocked_by": [],
+      "status": "in_progress",
+      "started": "2026-04-30T15:00:00"
+    },
+    {
+      "id": "phase-4.2",
+      "name": "MIR Feature Expansion (Essentia-full + selective hand-crafted)",
+      "description": "Current 29-dim profile is shallow. Expand to 60\u2013100 dimensions using Essentia's built-in extractors and targeted librosa/essentia algorithms. Focus on rhythmic, tonal, spectral contrast, and MFCCs. Keep extraction lightweight; avoid heavy NNs (musicnn) unless explicitly opt-in.",
+      "tasks": [
+        "Audit Essentia's built-in extractors: MusicExtractor, FreesoundExtractor, LowLevelSpectralExtractor",
+        "Implement use_all=True path in MIRFeatureExtractor: call Essentia pool extractor and flatten numeric fields",
+        "Add targeted hand-crafted features even without librosa: Danceability, RhythmPatterns, SpectralContrast, MFCC, Chroma, Chord Complexity",
+        "Update _flatten() in classifier to accept expanded feature vector; backward-compatible (detect length)",
+        "Create feature name registry: MIRFeatureExtractor.get_feature_names() returns ordered list matching flatten order",
+        "Validate on 10-track real set; ensure no NaNs and extraction doesn't crash",
+        "Compare feature count: baseline 29 \u2192 expanded 60+; note dimensionality impact on training speed"
+      ],
+      "done": [],
+      "blocked_by": [
+        "phase-4.1"
+      ]
+    },
+    {
+      "id": "phase-4.3",
+      "name": "Zone-Classifier Training (optional)",
+      "description": "Switch from AQ regression (continuous) to zone classification (9-class softmax). More stable gradients, interpretable confusion matrix. Compare zone accuracy to regression\u2192digital-root baseline.",
+      "tasks": [
+        "Add zone-labeled targets to data_collector output (already in 4.1)",
+        "Implement MLPClassifier (9-class) in trainer.py; keep regressor as fallback",
+        "Train both models on same dataset; compare top-1 zone accuracy, top-3 accuracy",
+        "Generate per-zone confusion matrix; identify most-confused zone pairs (e.g., 6\u21949)",
+        "Evaluate both on real-audio set; report which objective generalises better"
+      ],
+      "done": [],
+      "blocked_by": [
+        "phase-4.1",
+        "phase-4.2"
+      ]
+    },
+    {
+      "id": "phase-4.4",
+      "name": "Vocal Presence Detection (optional, advanced)",
+      "description": "Given corpus includes chants, hymns, and vocal-heavy ambient, vocal ratio is a discriminative feature. Add lightweight vocal activity detector (VAD) without heavy dependencies.",
+      "tasks": [
+        "Research lightweight VAD options: percussive/harmonic separation ratio (librosa.effects.hpss), spectral flatness in speech formant bands (300\u20133000 Hz)",
+        "Implement vocal_ratio feature in mir_profiler without new dependencies",
+        "Correlate vocal_ratio with zone labels; test discriminative power on real set",
+        "If strong correlation found, add to default feature set; else keep as optional"
+      ],
+      "done": [],
+      "blocked_by": [
+        "phase-4.1"
+      ]
+    },
+    {
+      "id": "phase-4.5",
+      "name": "Validation Suite Expansion & Hyperparameter Tuning",
+      "description": "Build proper held-out validation: 40 tracks (4\u20135 per zone) from diverse sources. Tune classifier hyperparameters (layer sizes, dropout, learning rate). Report final metrics.",
+      "tasks": [
+        "Curate held-out real-audio set: 40 tracks balanced across zones 1\u20139 (if possible)",
+        "Run multi-zone classifier on held-out; report per-zone precision/recall/F1",
+        "Tune MLP architecture: try (256,128), dropout 0.2\u20130.5, early stopping",
+        "Compare against random forest baseline (sklearn.RandomForestClassifier)",
+        "Document final model choice; freeze artifacts; tag v0.7.0"
+      ],
+      "done": [],
+      "blocked_by": [
+        "phase-4.1",
+        "phase-4.2",
+        "phase-4.3"
+      ]
+    }
+  ],
+  "success_criteria": [
+    "Multi-zone dataset generated: \u2265900 examples across zones 1\u20139 (or 3700 delta-balanced)",
+    "Expanded MIR features: \u226560 dimensions (baseline was 29)",
+    "Zone classification accuracy on synthetic test set: \u226550% (baseline 10%)",
+    "Real-audio zone accuracy on 10-track set: \u226530% (baseline 10%)",
+    "All new features have non-NaN extraction on\u81f3\u5c1190% of tracks"
+  ],
+  "notes": "Phase 4 is about fixing the dataset first (zone balance), then enriching features. The combination should yield the biggest accuracy jump. Vocal detection and classifier choice are secondary optimisations.",
+  "version": "v0.7.0-multi-zone",
+  "tags": [
+    "v0.7.0",
+    "dataset-diversification",
+    "feature-expansion",
+    "zone-classifier"
+  ],
+  "last_updated": "2026-04-30T14:20:00"
+}
