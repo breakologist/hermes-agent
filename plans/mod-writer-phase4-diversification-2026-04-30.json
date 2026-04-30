@@ -1,113 +1,134 @@
 {
-  "title": "mod-writer v0.7.0 \u2014 Phase 4: Dataset Diversification & Feature Expansion",
+  "title": "mod-writer v0.7.0 — Phase 4: Dataset Diversification, Feature Expansion & Open Music Research",
   "created": "2026-04-30",
-  "status": "Phase 4 in progress \u2014 4.1 multi-zone dataset building, 4.2 feature expansion in progress",
+  "status": "Phase 4.1 running; 4.2+ scaffolding prepared",
   "parent_plan": "mod-writer-phase3-classifier-2026-05-01.json",
   "phases_completed": 3,
-  "total_phases": 5,
+  "total_phases": 6,
   "phases": [
     {
       "id": "phase-4.1",
-      "name": "Multi-Zone Synthetic Dataset",
-      "description": "Expand synthetic training data from 100 examples (zone=1 only) to balanced 9-zone dataset. ~900 examples total (100 per zone) or ~3700 (100 per delta 0-36). This is the single highest-accuracy lever: zone-balanced data should push zone accuracy from ~10% \u2192 40\u201360%.",
+      "name": "Multi-Zone Synthetic Dataset — balanced (900) and delta-balanced (3700)",
+      "description": "Foundational data layer. Phase 3 used 100 examples (zone 1 only). Phase 4.1 expands to full zone coverage. Two variants:\n\n1. **Zone-balanced** (900 samples): 100 seeds per zone 1–9 via aq = z + 9·k (z∈1..8) or aq = 9·(k+1) (zone 9). Guarantees equal class representation for 9-way classification.\n\n2. **Delta-balanced** (~3700 samples): all 0–36 syzygy deltas, each with multiple seeds. Allows predicting gate-shift (0–36) instead of absolute AQ; potentially smoother regression target with clearer musical meaning (relative harmony offset).\n\n**Dataset‑size vs signal tension:** 900 samples is the *minimum viable stratified set*. We will monitor validation accuracy: if zone classifier stalls <50 %, we will either (a) expand to the full 3700‑sample delta set (more data, finer‑grained labels), or (b) add more seeds per zone (e.g. 250→2250 total). The trade‑off is wall‑clock generation time vs statistical power. We keep both variants in separate NPZs for A/B testing.",
       "tasks": [
-        "Extend data_collector.build_dataset() to accept zones=[1..9] or delta=True flag (done)",
-        "Generate per-zone datasets: SongBuilder(zone=z, aq_seed=s) for z in 1..9, s in 0..99",
-        "Store zone and delta labels in NPZ alongside X/y (zone: int 1..9, delta: int 0..36)",
-        "Optionally generate full 37-delta dataset (aq=0..999) \u2192 ~3700 examples; downsample to balanced for training",
-        "Add dataset manifest: dataset_zones.npz, dataset_delta.npz with metadata describing distribution",
-        "Update classifier trainer to accept zone-balanced data and compute stratified train/test splits",
-        "Retrain baseline MLPRegressor on multi-zone data; evaluate zone accuracy",
-        "If accuracy still low, consider zone-classifier (9-class softmax) instead of regression"
+        "Rewrite data_collector.build_dataset() for zone‑balanced and delta‑balanced paths (done)",
+        "Delete legacy artifacts/dataset.npz to force fresh generation (done)",
+        "Orchestrate Phase 4.1 via run_phase4_dataset.py: zones='all', seeds_per_zone=100 (done)",
+        "Monitor PID 2672954; verify dataset_balanced_900.npz shape (900, Nfeat) + zones array present",
+        "Optionally launch delta‑balanced variant: build_dataset(deltas='all', seeds_per_delta=100) → dataset_delta_3700.npz",
+        "Update trainer.py: load zone‑balanced NPZ; compute stratified train/test split (80/20 per zone)",
+        "Run baseline training on 900‑sample set; record top‑1 zone accuracy, top‑3 accuracy, per‑zone F1",
+        "If accuracy < 50 % on synthetic test, schedule expansion: either delta‑set or increased seeds"
       ],
-      "done": [],
+      "done": ["data_collector rewrite", "Phase 4.1 script created", "venv joblib fix", "wiki updated", "fork synced"],
       "blocked_by": [],
       "status": "in_progress",
       "started": "2026-04-30T15:00:00"
     },
     {
       "id": "phase-4.2",
-      "name": "MIR Feature Expansion (Essentia-full + selective hand-crafted)",
-      "description": "Current 29-dim profile is shallow. Expand to 60\u2013100 dimensions using Essentia's built-in extractors and targeted librosa/essentia algorithms. Focus on rhythmic, tonal, spectral contrast, and MFCCs. Keep extraction lightweight; avoid heavy NNs (musicnn) unless explicitly opt-in.",
+      "name": "MIR Feature Expansion — Essentia full‑pool + selective handcrafted",
+      "description": "Phase 4.2 is the *feature‑horizon* expansion. We move from 29 baseline features to 60–100+ via Essentia's MusicExtractor/LowLevelSpectralExtractor swimming pool. Implementation is already in place: `MIRFeatureExtractor.extract(use_all=True)` returns the flattened scalar pool.\n\n**Openness guardrail:** We extract *all* numeric descriptors first (no human curation), then later apply feature selection if dimensionality hurts training. This respects the ear‑first principle: let the full spectrum speak before we prune.\n\n**Music‑first stance:** We do *not* yet apply music‑theoretic filters (e.g. prune microtonal descriptors). We want the raw correlation matrix between zones and the full Essentia feature set; that matrix itself is a numogram artifact. Analysis → curation → repeat.",
       "tasks": [
-        "Audit Essentia's built-in extractors: MusicExtractor, FreesoundExtractor, LowLevelSpectralExtractor",
-        "Implement use_all=True path in MIRFeatureExtractor: call Essentia pool extractor and flatten numeric fields",
-        "Add targeted hand-crafted features even without librosa: Danceability, RhythmPatterns, SpectralContrast, MFCC, Chroma, Chord Complexity",
-        "Update _flatten() in classifier to accept expanded feature vector; backward-compatible (detect length)",
-        "Create feature name registry: MIRFeatureExtractor.get_feature_names() returns ordered list matching flatten order",
-        "Validate on 10-track real set; ensure no NaNs and extraction doesn't crash",
-        "Compare feature count: baseline 29 \u2192 expanded 60+; note dimensionality impact on training speed"
+        "Validate use_all=True on a 10‑track sample: no NaNs, reasonable extraction time (<2 s/track)",
+        "Enumerate feature names: MIRFeatureExtractor.get_feature_names() (ordered list matching flatten)",
+        "Integrate expanded features into data_collector._flatten_features() — already patched (done)",
+        "Compare vector lengths: baseline 29 → expanded ~X (measure on first batch)",
+        "Document feature set in wiki: mod-writer-mir-profile.md (Essentia full‑pool section already added — done)",
+        "Run a quick ablation study later: 29‑dim vs expanded‑set vs hand‑selected subset",
+        "If training becomes prohibitively slow, introduce variance‑threshold filter (keep top K features)"
       ],
-      "done": [],
-      "blocked_by": [
-        "phase-4.1"
-      ]
+      "done": ["use_all implementation", "wiki update"],
+      "blocked_by": ["phase-4.1"],
+      "status": "in_progress"
     },
     {
       "id": "phase-4.3",
-      "name": "Zone-Classifier Training (optional)",
-      "description": "Switch from AQ regression (continuous) to zone classification (9-class softmax). More stable gradients, interpretable confusion matrix. Compare zone accuracy to regression\u2192digital-root baseline.",
+      "name": "Zone‑Classifier Training (9‑class softmax) + delta variant optional",
+      "description": "Switch from continuous AQ regression to discrete zone classification. More stable gradients, interpretable confusion matrix. We will train *both* classifiers on the same balanced dataset: (a) zone‑predictor (9‑way softmax), (b) delta‑predictor (37‑way softmax) if we generate dataset_delta_3700.npz.\n\n**Why both?** Zone classification directly answers \"which region of the numogram?\"; delta prediction asks \"what syzygy shift relative to root?\" — a musically richer question. We compare which objective generalises better to real audio.",
       "tasks": [
-        "Add zone-labeled targets to data_collector output (already in 4.1)",
-        "Implement MLPClassifier (9-class) in trainer.py; keep regressor as fallback",
-        "Train both models on same dataset; compare top-1 zone accuracy, top-3 accuracy",
-        "Generate per-zone confusion matrix; identify most-confused zone pairs (e.g., 6\u21949)",
-        "Evaluate both on real-audio set; report which objective generalises better"
+        "Update trainer.py: load dataset_balanced_900.npz; detect presence of 'zones' array.",
+        "Implement MLPClassifier(zones, hidden_sizes=(256,128), dropout=0.3) for zone prediction.",
+        "Implement second head (if delta data available): MLPClassifier(deltas, hidden_sizes=(256,128)) for gate-shift prediction.",
+        "Train both models on same 80 % split; evaluate top‑1 and top‑3 accuracy on held‑out 20 %.",
+        "Generate full confusion matrix (9×9); flag the most‑confused zone pairs (anticipate 6↔9, 3↔6).",
+        "If delta variant trained, do same (37×37) — expect diffuse distribution; group by digital root for readability.",
+        "Save both models to artifacts/ (zone_clf.pkl, delta_clf.pkl) and log metrics to artifacts/phase4.3_report.json."
       ],
       "done": [],
-      "blocked_by": [
-        "phase-4.1",
-        "phase-4.2"
-      ]
+      "blocked_by": ["phase-4.1", "phase-4.2"],
+      "status": "pending"
     },
     {
       "id": "phase-4.4",
-      "name": "Vocal Presence Detection (optional, advanced)",
-      "description": "Given corpus includes chants, hymns, and vocal-heavy ambient, vocal ratio is a discriminative feature. Add lightweight vocal activity detector (VAD) without heavy dependencies.",
+      "name": "Audio → AQ Mapping Model (correlation, not causation)",
+      "description": "Build a lightweight predictor (random forest / small MLP) that maps MIR features to zone/gate/current. Purpose is *exploratory*, not production: we want to see which features correlate with which numogram parameters. This turns the classifier into a *numogram ear* — it listens and reports what it hears in our symbolic vocabulary.\n\n**Openness checkpoint:** If the model fails to find any signal beyond baseline, we accept that the numogram overlay is a *creative constraint* rather than a discovered acoustic law. That's fine. The model's confusion matrix itself becomes a tetralogue prompt.",
       "tasks": [
-        "Research lightweight VAD options: percussive/harmonic separation ratio (librosa.effects.hpss), spectral flatness in speech formant bands (300\u20133000 Hz)",
-        "Implement vocal_ratio feature in mir_profiler without new dependencies",
-        "Correlate vocal_ratio with zone labels; test discriminative power on real set",
-        "If strong correlation found, add to default feature set; else keep as optional"
+        "Train a shallow RandomForestClassifier on the same feature set; compare to MLP.",
+        "Run SHAP / permutation importance to identify top discriminating features per zone.",
+        "If strong features emerge (e.g. spectral centroid ↔ zone 9), document in wiki as 'observed correlations'.",
+        "Export the model (joblib) for future `mod-writer --mir-seed` inference (optional).",
+        "Write a short reflection: does the numogram correlate with measurable audio traits, or is it purely generative?"
       ],
       "done": [],
-      "blocked_by": [
-        "phase-4.1"
-      ]
+      "blocked_by": ["phase-4.3"],
+      "status": "pending"
     },
     {
       "id": "phase-4.5",
-      "name": "Validation Suite Expansion & Hyperparameter Tuning",
-      "description": "Build proper held-out validation: 40 tracks (4\u20135 per zone) from diverse sources. Tune classifier hyperparameters (layer sizes, dropout, learning rate). Report final metrics.",
+      "name": "Real‑Audio Curation & Generalisation Test",
+      "description": "Phase 3 real‑audio test (10 tracks) collapsed to zone 6 due to uniform synthetic training. Phase 4.5 builds a *balanced* held‑out set of 40 real tracks spanning diverse genres (ambient, chant, techno, classical, folk, noise) and manually labels them with AQ seeds or at least zone estimates. This set tests whether the synthetic‑trained model generalises.",
       "tasks": [
-        "Curate held-out real-audio set: 40 tracks balanced across zones 1\u20139 (if possible)",
-        "Run multi-zone classifier on held-out; report per-zone precision/recall/F1",
-        "Tune MLP architecture: try (256,128), dropout 0.2\u20130.5, early stopping",
-        "Compare against random forest baseline (sklearn.RandomForestClassifier)",
-        "Document final model choice; freeze artifacts; tag v0.7.0"
+        "Curate 40 tracks (4–5 per zone if possible) from personal collection; document source, BPM, key, subjective zone assignment rationale.",
+        "If manual zone labels are uncertain, use a *Council* of three models to assign zone probabilities; take median.",
+        "Run the best classifier (zone or delta) on this set; report per‑zone precision/recall/F1.",
+        "Compare synthetic test accuracy (in‑distribution) vs real set (out‑of‑distribution).",
+        "If accuracy drops > 20 %, note the domain gap; plan Phase 5: domain‑adversarial training or real‑fine‑tuning.",
+        "Document all real tracks in wiki: real-audio-validation-set.md (with listening notes)."
       ],
       "done": [],
-      "blocked_by": [
-        "phase-4.1",
-        "phase-4.2",
-        "phase-4.3"
-      ]
+      "blocked_by": ["phase-4.3"],
+      "status": "pending"
+    },
+    {
+      "id": "phase-4.6",
+      "name": "TouchDesigner Integration & Realtime Visualisation",
+      "description": "Close the loop: generate audio + MIR → visualise zone state in TouchDesigner. The td-watcher already exists; we extend it to consume the new MIR feature vector and zone probabilities, mapping them to numeric CHOPs and colour palettes.",
+      "tasks": [
+        "Extend td-watcher.py to read artifacts/phase4.3_report.json (zone probabilities per track).",
+        "Map top‑3 predicted zones to RGB via ZONE_COLOR palette; output as JSON for Text TOP.",
+        "Create a minimal TouchDesigner demo file (td_demo.toe) that loads the state and drives a simple visual (e.g. rotating pentagram whose vertices correspond to zones).",
+        "Document the pipeline in audio-renderer/README-TD-Watcher.md; add a wiki page \"TouchDesigner Integration\".",
+        "Test end‑to‑end: mod-writer → render → analyse → td-watcher → TouchDesigner visual reacts."
+      ],
+      "done": [],
+      "blocked_by": ["phase-4.4"],
+      "status": "pending"
     }
   ],
   "success_criteria": [
-    "Multi-zone dataset generated: \u2265900 examples across zones 1\u20139 (or 3700 delta-balanced)",
-    "Expanded MIR features: \u226560 dimensions (baseline was 29)",
-    "Zone classification accuracy on synthetic test set: \u226550% (baseline 10%)",
-    "Real-audio zone accuracy on 10-track set: \u226530% (baseline 10%)",
-    "All new features have non-NaN extraction on\u81f3\u5c1190% of tracks"
+    "Zone‑balanced dataset generated: 900 examples across zones 1–9 (or 3700 delta‑balanced); artifacts/dataset_balanced_900.npz and/or artifacts/dataset_delta_3700.npz exist and load cleanly",
+    "Expanded MIR features integrated: feature dimension ≥ 60; no NaNs on validation set; feature names enumerated",
+    "Zone classifier trained: top‑1 accuracy ≥ 50 % on synthetic test set (baseline 10 %); top‑3 ≥ 70 %",
+    "Delta classifier (if generated): top‑1 accuracy ≥ 30 % (37‑way is hard); top‑3 ≥ 55 %",
+    "Correlation analysis (Phase 4.4) completed; at least 5 features show zone‑biased distributions (p < 0.05)",
+    "Real‑audio set curated (40 tracks) and evaluated; report shows synthetic→real generalisation gap (expected)",
+    "TouchDesigner demo functional: mod output drives a live visual; documented pipeline"
   ],
-  "notes": "Phase 4 is about fixing the dataset first (zone balance), then enriching features. The combination should yield the biggest accuracy jump. Vocal detection and classifier choice are secondary optimisations.",
-  "version": "v0.7.0-multi-zone",
-  "tags": [
-    "v0.7.0",
-    "dataset-diversification",
-    "feature-expansion",
-    "zone-classifier"
+  "open_research_questions": [
+    "Does the numogram correlate with measurable acoustic traits (spectral centroid, BPM, key, rhythmic density) or is it purely a generative lens?",
+    "How does dataset size affect signal? We will compare 900 vs 3700 vs (optional) 2500 seeds‑per‑zone to find diminishing returns.",
+    "Should we pivot to delta‑prediction (syzygy shift) as the primary objective? It is musically more meaningful (relative harmony) and may generalise better.",
+    "Can we incorporate actual music‑theory features (chord‑type, scale‑mode, voice‑leading smoothness) without injecting human bias?",
+    "When does the classifier's confusion matrix become *useful* (e.g. consistently confusing 6↔9 suggests a numogram‑native acoustic similarity)?",
+    "How do we train the 'ears' — both the agent's and the community's — to listen for numogram structure without imposing it?"
   ],
-  "last_updated": "2026-04-30T14:20:00"
+  "ethics_and_openness": [
+    "Music is not a dataset. We study audio *as music* — with listening, not just analysis.",
+    "Numogram overlay is optional: we publish both findings (correlations exist) and null results (no signal).",
+    "All synthetic data is CC0; real‑audio metadata is citation‑only (no redistribution of copyrighted audio).",
+    "Community fork (breakologist/hermes-agent) will include all Phase 4 code; welcome PRs on audio/MIR improvements."
+  ],
+  "version": "0.7.0-plan",
+  "last_updated": "2026-04-30T18:45:00Z"
 }
