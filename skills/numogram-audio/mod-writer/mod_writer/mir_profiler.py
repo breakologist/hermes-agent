@@ -170,15 +170,13 @@ class MIRFeatureExtractor:
 
         # ── Mid‑level: tempo, key ──────────────────────────────────────────
         midlevel: Dict[str, Any] = {}
+
         if _HAS_LIBROSA:
             try:
-                tempo, _ = librosa.beat.beat_track(onset_envelope=onset_env if _HAS_LIBROSA else None,
-                                                   sr=sr, hop_length=hop)
+                tempo, _ = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr, hop_length=hop)
                 midlevel['bpm'] = round(float(tempo), 2)
-                midlevel['beat_confidence'] = None  # could fill later
             except Exception:
                 midlevel['bpm'] = None
-                midlevel['beat_confidence'] = None
             try:
                 chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
                 chroma_avg = np.mean(chroma, axis=1)
@@ -187,9 +185,27 @@ class MIRFeatureExtractor:
                 midlevel['key'] = key_names[key_idx]
             except Exception:
                 midlevel['key'] = None
-        else:
-            midlevel['bpm'] = None
-            midlevel['key'] = None
+
+        elif _HAS_ESSENTIA:
+            try:
+                rhythm_extractor = es.RhythmExtractor2013(method="multifeature")
+                _, _, tempo, beat_confidence, _ = rhythm_extractor(y)
+                midlevel['bpm'] = round(float(tempo), 2)
+                midlevel['beat_confidence'] = round(float(beat_confidence), 3)
+            except Exception:
+                midlevel['bpm'] = None
+                midlevel['beat_confidence'] = None
+            try:
+                key_extractor = es.KeyExtractor()
+                key_code, scale_code, strength = key_extractor(y)
+                key_names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+                midlevel['key'] = key_names[key_code] if 0 <= key_code < 12 else None
+                midlevel['scale'] = 'major' if scale_code == 1 else 'minor' if scale_code == 2 else None
+                midlevel['key_strength'] = round(float(strength), 3)
+            except Exception:
+                midlevel['key'] = None
+                midlevel['scale'] = None
+                midlevel['key_strength'] = None
 
         # ── High‑level: tags, genre, mood ───────────────────────────────────
         highlevel: Dict[str, Any] = {}
@@ -199,6 +215,14 @@ class MIRFeatureExtractor:
                 highlevel['tags'] = {t: float(s) for t, s in tags}
             except Exception:
                 highlevel['tags'] = {}
+        elif _HAS_ESSENTIA:
+            try:
+                genre_extractor = es.GenreTinyCNN()
+                genres = genre_extractor(y)
+                highlevel['genres'] = [(str(g), float(p)) for g, p in genres[:3]]
+            except Exception:
+                highlevel['genres'] = []
+            highlevel['tags'] = {}  # musicnn not present, leave empty
         else:
             highlevel['tags'] = {}
 
