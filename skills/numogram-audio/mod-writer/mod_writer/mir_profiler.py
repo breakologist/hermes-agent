@@ -191,21 +191,25 @@ class MIRFeatureExtractor:
                 rhythm_extractor = es.RhythmExtractor2013(method="multifeature")
                 _, _, tempo, beat_confidence, _ = rhythm_extractor(y)
                 midlevel['bpm'] = round(float(tempo), 2)
-                midlevel['beat_confidence'] = round(float(beat_confidence), 3)
-            except Exception:
+                # beat_confidence is an array; take mean for a single value
+                midlevel['beat_confidence'] = round(float(np.mean(beat_confidence)), 3)
+            except Exception as e:
                 midlevel['bpm'] = None
                 midlevel['beat_confidence'] = None
+                midlevel['_rhythm_error'] = str(e)
             try:
                 key_extractor = es.KeyExtractor()
-                key_code, scale_code, strength = key_extractor(y)
-                key_names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
-                midlevel['key'] = key_names[key_code] if 0 <= key_code < 12 else None
-                midlevel['scale'] = 'major' if scale_code == 1 else 'minor' if scale_code == 2 else None
+                key, scale, strength = key_extractor(y)
+                # key is already a string (e.g. "C", "G#") in recent Essentia versions
+                # scale: 1=major, 2=minor, else None
+                midlevel['key'] = str(key) if key else None
+                midlevel['scale'] = 'major' if scale == 1 else 'minor' if scale == 2 else None
                 midlevel['key_strength'] = round(float(strength), 3)
-            except Exception:
+            except Exception as e:
                 midlevel['key'] = None
                 midlevel['scale'] = None
                 midlevel['key_strength'] = None
+                midlevel['_key_error'] = str(e)
 
         # ── High‑level: tags, genre, mood ───────────────────────────────────
         highlevel: Dict[str, Any] = {}
