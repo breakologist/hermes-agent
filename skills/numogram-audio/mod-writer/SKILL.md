@@ -7,10 +7,10 @@ triggers:
   - word: "mod writer"
   - word: "module generator"
   - phrase: "generate mod"
-version: 0.4.0
+version: 0.6.0
 author: Hermes Agent + CCRU lineage
-last_updated: 2026-04-28
-status: stable (Phase 4 rendering)
+last_updated: 2026-04-30
+status: stable (Phase 5 full-track orchestration)
 ---
 ## Purpose
 
@@ -257,6 +257,70 @@ All flags coexist; order of application: notes placed → syzygy harmony added �
 entropy mutates zones → AQ shifts gates → pattern length set (triangular).
 
 Status: ✓ complete (v0.3.0)
+
+
+## Phase 5 — Full-Track Orchestration (complete)
+
+Composition no longer stops at a single pattern. The `SongBuilder` orchestrates
+multiple sections, each with its own `ModComposer` instance, then merges samples
+and chains patterns into a complete module.
+
+**New CLI flags:**
+- `--song FILE.json` — load arrangement from JSON (sections, patterns, motifs)
+- `--song-manifest` — write a companion `song.manifest.json` alongside the `.mod`
+  containing section metadata, pattern counts, sample map, and BPM
+- `--bpm N` — global tempo (affects playback speed)
+
+**Python API:**
+```python
+from mod_writer.song import SongBuilder
+SongBuilder(title="My Track", bpm=120)\
+    .add_section(motif="Warp", rows=32, triangular=True)\
+    .add_section(zone=5, rows=16, gate=0, current="B")\
+    .write("track.mod")
+```
+
+**Features:**
+- Multi‑section arrangements with independent `ModComposer` instances
+- Automatic sample renaming to avoid slot collisions between sections
+- Pattern caching by parameter hash (re‑use identical sections)
+- Integration with Phase 4: `--render`, `--spectrogram`, `--analyze`,
+  `--manifest`, `--describe` operate on the final merged module
+
+Status: ✓ complete (v0.6.0)
+
+---
+## Phase 6 — Just Intonation Mode (complete)
+
+When generating triad motifs, the default tuning uses equal temperament (each
+semitone = 2^(1/12) ratio). With `--just-intonation`, the third and fifth
+are tuned to pure small-integer ratios:
+
+| Chord tone | Major ratio | Minor ratio |
+|------------|------------|------------|
+| Root       | 1/1        | 1/1        |
+| Third      | 5/4        | 6/5        |
+| Fifth      | 3/2        | 3/2        |
+
+Implementation: `ModComposer` computes per‑tone periods as
+`period = round(root_period / ratio)`, clamped to ≥ 1. Root note retains
+equal‑tempered period. The override is stored in `zone_grid` entries and
+propagates through `SongBuilder` as well.
+
+**Usage example:**
+```bash
+# Single triad motif with just-intonation
+mod-writer --triad-motif Ptolemaic --just-intonation --rows 64 --output ptolemaic-just.mod
+
+# Full song orchestration
+mod-writer --song symphony.json --just-intonation --song-manifest --output symphony-just.mod
+```
+
+All existing functionality remains backward compatible — the flag is opt‑in.
+
+Status: ✓ complete (v0.6.0)
+
+---
 
 ---
 
