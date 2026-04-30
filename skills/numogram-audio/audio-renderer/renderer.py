@@ -12,16 +12,20 @@ import os
 __version__ = "0.1"
 
 
-def render_mod_to_wav(mod_path: str, wav_path: str = None, duration: float = None) -> str:
-    """Convert .mod → WAV via ffmpeg (libopenmpt decoder)."""
+def render_mod_to_wav(mod_path: str, wav_path: str = None, **kw) -> str:
+    """Convert .mod → WAV via ffmpeg (libopenmpt decoder).
+
+    If wav_path is not provided, derives output name by replacing .mod with .wav
+    or by using the same base name in the same directory.
+    """
     if not os.path.isfile(mod_path):
         raise FileNotFoundError(mod_path)
     if wav_path is None:
-        fd, wav_path = tempfile.mkstemp(suffix='.wav')
-        os.close(fd)
+        base = os.path.splitext(mod_path)[0]
+        wav_path = base + '.wav'
     cmd = ['ffmpeg', '-y', '-i', mod_path]
-    if duration:
-        cmd.extend(['-t', str(duration)])
+    if 'duration' in kw and kw['duration']:
+        cmd.extend(['-t', str(kw['duration'])])
     cmd.extend(['-f', 'wav', wav_path])
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     if result.returncode != 0:
@@ -43,19 +47,41 @@ def wav_to_ogg(wav_path: str, ogg_path: str = None, quality: str = '6') -> str:
     return ogg_path
 
 
-def generate_spectrogram(wav_path: str, png_path: str = None) -> str:
-    """Generate spectrogram PNG (frequency vs time)."""
+def generate_spectrogram(wav_path: str, png_path: str = None, colormap: str = 'viridis', size: str = '800x400') -> str:
+    """Generate spectrogram PNG (frequency vs time) using ffmpeg showspectrumpic.
+
+    Colormap options (ffmpeg built-in): viridis, magma, plasma, cool.
+    Size format: WIDTHxHEIGHT (e.g. '800x400').
+    If png_path is None, replaces .wav with _spec.png.
+    """
     if png_path is None:
-        png_path = wav_path.replace('.wav', '_spec.png')
+        base = os.path.splitext(wav_path)[0]
+        png_path = base + '_spec.png'
+    # showspectrumpic parameters: scale=log (frequency), color=<colormap>, size=<WxH>
+    # Note: 'slide' and 'legend' options are not universally available; use size.
+    filter_str = f'showspectrumpic=scale=log:color={colormap}:size={size}'
     cmd = [
         'ffmpeg', '-y', '-i', wav_path,
-        '-filter_complex', 'showspectrumpic=scale=log:color=viridis:slide=1:height=400:legend=enabled',
+        '-filter_complex', filter_str,
         '-frames:v', '1', png_path
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     if result.returncode != 0:
         raise RuntimeError(f"Spectrogram generation failed: {result.stderr[-500:]}")
     return png_path
+
+
+# Analysis (ffmpeg-based) — comprehensive
+from analyzer import full_analysis as analyze_wav, describe_audio
+
+
+# analyze_wav() signature preserved for backward compatibility:
+#   analyze_wav(wav_path: str) -> dict with extended metric set
+#   returns same keys as full_analysis() (see analyzer.py)
+#   embed into manifest or JSON as needed.
+
+# describe_audio(analysis: dict, zone: int, gate: str, current: str) -> str
+#   Generates oracle-readable textual portrait.
 
 
 def play_audio(file_path: str, player: str = 'ffplay') -> None:

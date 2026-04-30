@@ -215,6 +215,15 @@ def main():
     p.add_argument('--mir-seed', metavar='AUDIO_FILE',
                    help='Derive an AQ seed from audio fingerprint, then generate a module (implies --aq-seed). '
                         'Uses the same feature profile as --profile-audio.')
+    # Phase 3.4 — AQ classifier (real-audio validation → CLI)
+    p.add_argument('--classify', metavar='AUDIO_FILE',
+                   help='Run AQ classifier on a single audio file.')
+    p.add_argument('--classify-dir', metavar='DIRECTORY',
+                   help='Batch-classify all audio files in a directory (max --classify-limit).')
+    p.add_argument('--classify-limit', type=int, default=100,
+                   help='Maximum files to classify in --classify-dir mode (default 100)')
+    p.add_argument('--classify-format', choices=['table','json','csv'], default='table',
+                   help='Output format: table (default), json, or csv')
     p.add_argument('--from-audio', metavar='AUDIO_FILE',
                    help='[Prototype] Transcribe audio directly into a tracker pattern (Phase 7a). '
                         'Captures onset peaks and spectral allocation as notes.')
@@ -432,6 +441,60 @@ def main():
         derived_seed = MIRFeatureExtractor.profile_to_seed(profile)
         args.aq_seed = derived_seed
         print(f"🔮 Derived AQ seed from audio fingerprint: {args.aq_seed}")
+
+    # ── Phase 3.4: AQ classifier ————————————————————————————————————————————————
+    if getattr(args, 'classify', None):
+        if not _MIR_AVAILABLE:
+            print("❌ Classification requires MIR extras: pip install mod-writer[mir]")
+            print(f"   Import error: {_MIR_IMPORT_ERROR}")
+            sys.exit(1)
+        from mod_writer.classifier import predict_audio
+        try:
+            result = predict_audio(args.classify)
+        except Exception as e:
+            print(f"❌ Classification failed: {e}")
+            sys.exit(1)
+        if args.classify_format == 'json':
+            print(json.dumps(result, indent=2))
+        elif args.classify_format == 'csv':
+            print("file,predicted_aq,zone,duration_s,bpm,key,scale")
+            print(f"{result['file']},{result['predicted_aq']},{result['zone']},"
+                  f"{result['duration_s']},{result['bpm'] or ''},{result['key'] or ''},{result['scale'] or ''}")
+        else:
+            print(f" file:               {result['file']}")
+            print(f" predicted AQ:       {result['predicted_aq']}")
+            print(f" zone:               {result['zone']}")
+            print(f" duration:           {result['duration_s']:.1f}s")
+            print(f" bpm:                {result['bpm'] if result['bpm'] else 'unknown'}")
+            print(f" key:                {result['key'] or 'unknown'} {result['scale'] or ''}")
+        sys.exit(0)
+
+    if getattr(args, 'classify_dir', None):
+        if not _MIR_AVAILABLE:
+            print("❌ Classification requires MIR extras: pip install mod-writer[mir]")
+            sys.exit(1)
+        from mod_writer.classifier import batch_predict
+        try:
+            results = batch_predict(args.classify_dir, limit=args.classify_limit)
+        except Exception as e:
+            print(f"❌ Batch classification failed: {e}")
+            sys.exit(1)
+        if args.classify_format == 'json':
+            print(json.dumps(results, indent=2))
+        elif args.classify_format == 'csv':
+            print("file,predicted_aq,zone,duration_s,bpm,key,scale")
+            for r in results:
+                print(f"{r['file']},{r['predicted_aq']},{r['zone']},"
+                      f"{r['duration_s']},{r['bpm'] or ''},{r['key'] or ''},{r['scale'] or ''}")
+        else:
+            print(f"{'FILE':<50} {'AQ':>7} {'Z':>3} {'DUR':>6} {'BPM':>5} {'KEY':>6}")
+            print("-" * 80)
+            for r in results:
+                bpm_str = f"{r['bpm']:.1f}" if r['bpm'] else "?"
+                key_str = (r['key'] or '?') + (' ' + r['scale'][:3] if r['scale'] else '')
+                print(f"{r['file'][:50]:<50} {r['predicted_aq']:>7.1f} {r['zone']:>3} "
+                      f"{r['duration_s']:>6.1f} {bpm_str:>5} {key_str:>6}")
+        sys.exit(0)
 
     # ── Phase 7: Audio transcription (prototype stubs) ————————————————————————
     if getattr(args, 'from_audio', None):

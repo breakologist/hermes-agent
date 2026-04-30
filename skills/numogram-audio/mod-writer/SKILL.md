@@ -418,6 +418,25 @@ Death's Dynamic Shroud, etc.).
 Next: expand synthetic dataset to multiple zones, switch to delta prediction
 (0-36 gate shift), or curate real-labeled training set.
 
+
+### 3.4 CLI integration (complete)
+
+The `--classify` and `--classify-dir` flags expose the AQ classifier directly from the
+command line, bypassing MOD generation:
+
+- `--classify AUDIO_FILE` — single-track prediction
+- `--classify-dir DIRECTORY` — batch walk (respects `--classify-limit`)
+- `--classify-format {table,json,csv}` — output representation
+
+The output fields align with the synthetic validation schema: `file`, `predicted_aq`,
+`zone`, `duration_s`, `bpm`, `key`, `scale`. Both JSON and CSV formats write to stdout;
+the table format is intended for interactive use.
+
+Real-audio validation on a 10-track curated set showed a Zone 6 bias (9/10 tracks),
+indicating that the model has not yet learned discriminative features beyond the
+uniform zone‑1 synthetic distribution. Future work will diversify training across zones
+or switch to predicting a zone-delta (0–36) rather than absolute AQ.
+
 ## Phase 4 — Audio Rendering & Spectral Analysis (complete)
 
 The `audio-renderer` skill provides the perception layer: convert binary `.mod`

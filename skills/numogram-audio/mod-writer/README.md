@@ -126,6 +126,34 @@ The script:
 
 **Next:** add more diverse synthetic data (multiple zones), switch to predicting delta (0-36), or train on real-labeled data via filename heuristic.
 
+
+## Phase 3.4 — CLI integration
+
+The `--classify` and `--classify-dir` flags provide direct CLI access to the AQ classifier
+without requiring intermediate MOD generation:
+
+```bash
+# Single-file classification (table output)
+mod-writer --classify track.mp3
+
+# Batch classification with limit and CSV output
+mod-writer --classify-dir /path/to/music/ --classify-limit 20 --classify-format csv
+```
+
+Output formats:
+
+- `table` (default) — aligned human-readable columns
+- `json` — structured single-track object
+- `csv` — header + rows for batch runs
+
+All formats include: `file`, `predicted_aq`, `zone`, `duration_s`, `bpm`, `key`, `scale`.
+The CLI uses the same feature extraction pipeline as `--profile-audio` and weights the
+32-dimensional MIR descriptor set with the saved `scaler.joblib` and `model.joblib`.
+
+Validation on the 10-track development set showed a strong Zone 6 (Venus) bias — expected
+given the uniform zone-1 synthetic training distribution. Future work will diversify the
+training dataset across multiple zones to improve classifier generalisation.
+
 ---
 
 ## License
