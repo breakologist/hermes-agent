@@ -7,7 +7,7 @@ triggers:
   - word: "mod writer"
   - word: "module generator"
   - phrase: "generate mod"
-version: 0.6.0
+version: 0.6.4
 author: Hermes Agent + CCRU lineage
 last_updated: 2026-04-30
 status: stable (Phase 5 full-track orchestration)
