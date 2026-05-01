@@ -37,11 +37,14 @@ except ImportError:
     _HAS_MADMOM = False
 
 try:
-    import essentia
     import essentia.standard as es
     _HAS_ESSENTIA = True
 except ImportError:
     _HAS_ESSENTIA = False
+
+
+# Duration cap for real-world tracks (seconds)
+MAX_ANALYSIS_SECONDS = 180
 
 try:
     from musicnn.extractor import extractor as _musicnn_extractor
@@ -84,6 +87,32 @@ def _read_wav_scipy(path: str) -> tuple[int, np.ndarray]:
     return sr, data
 
 
+def _sane_bpm(tempo: float | None, onset_rate: float | None, beat_confidence: float | None = None) -> float | None:
+    """Return a plausible BPM or None.
+    - tempo: raw beat_track output
+    - onset_rate: onsets per second (200-normalized later)
+    - beat_confidence: optional confidence [0-1]
+    Fallback order:
+      1. If tempo in [30,200] and (beat_confidence is None or beat_confidence > 0.4) → use it
+      2. Else if onset_rate available → onset_rate * 60
+      3. Else tempo (even if out of range)
+    """
+    if tempo is None:
+        return None
+    # Reasonable musical range
+    if 30 <= tempo <= 200:
+        # If we have confidence, require it to be non-trivial
+        if beat_confidence is not None and beat_confidence < 0.3:
+            # Low confidence — consider fallback
+            if onset_rate is not None and 0.5 <= onset_rate <= 5.0:  # 30-300 BPM equivalent
+                return round(onset_rate * 60.0, 2)
+        return round(float(tempo), 2)
+    # Out of range — try onset_rate proxy
+    if onset_rate is not None and 0.5 <= onset_rate <= 5.0:
+        return round(onset_rate * 60.0, 2)
+    # Last resort: return clamped tempo
+    return round(float(tempo), 2)
+
 def _onset_density(rms_frames: np.ndarray, sr: int, hop_length: int = 512) -> float:
     """Simple peak detection on an RMS frame envelope → onset density (Hz)."""
     peaks = (rms_frames[1:-1] > rms_frames[:-2]) & (rms_frames[1:-1] > rms_frames[2:])
@@ -104,12 +133,16 @@ class MIRFeatureExtractor:
         if not Path(path).exists():
             raise FileNotFoundError(path)
 
-        # ── Base: read audio ────────────────────────────────────────────────
+        # ── Base: read audio (capped to MAX_ANALYSIS_SECONDS for efficiency) ───
         if _HAS_LIBROSA:
-            y, sr = librosa.load(path, sr=None, mono=True)
+            y, sr = librosa.load(path, sr=None, mono=True, duration=MAX_ANALYSIS_SECONDS)
         else:
             sr, y_int = _read_wav_scipy(path)
             y = y_int.astype(np.float32)
+            # Manual crop if longer than cap
+            max_samples = int(MAX_ANALYSIS_SECONDS * sr)
+            if len(y) > max_samples:
+                y = y[:max_samples]
 
         duration = len(y) / sr
         channels_orig = 1  # forced mono above
@@ -168,13 +201,17 @@ class MIRFeatureExtractor:
                 frame_rms = np.array([rms])
             onset_density_val = _onset_density(frame_rms, sr, hop)
 
+        # Capture onset rate (Hz) for BPM fallback
+        onset_rate_hz = onset_density_val
+
         # ── Mid‑level: tempo, key ──────────────────────────────────────────
         midlevel: Dict[str, Any] = {}
 
         if _HAS_LIBROSA:
             try:
                 tempo, _ = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr, hop_length=hop)
-                midlevel['bpm'] = round(float(tempo), 2)
+                midlevel['bpm'] = _sane_bpm(tempo.item() if tempo is not None else None,
+                                            onset_rate_hz, beat_confidence=None)
             except Exception:
                 midlevel['bpm'] = None
             try:
@@ -190,9 +227,11 @@ class MIRFeatureExtractor:
             try:
                 rhythm_extractor = es.RhythmExtractor2013(method="multifeature")
                 _, _, tempo, beat_confidence, _ = rhythm_extractor(y)
-                midlevel['bpm'] = round(float(tempo), 2)
                 # beat_confidence is an array; take mean for a single value
-                midlevel['beat_confidence'] = round(float(np.mean(beat_confidence)), 3)
+                bc = float(np.mean(beat_confidence))
+                midlevel['beat_confidence'] = round(bc, 3)
+                midlevel['bpm'] = _sane_bpm(tempo.item() if tempo is not None else None,
+                                            onset_rate_hz, beat_confidence=bc)
             except Exception as e:
                 midlevel['bpm'] = None
                 midlevel['beat_confidence'] = None

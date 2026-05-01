@@ -107,15 +107,14 @@ class SongBuilder:
         prefix = f"S{section_no}-"
         for old in comp.writer.samples:
             new_name = prefix + old.name.ljust(8)[:8]
-            modw.add_sample(Sample(
-                name       = new_name,
-                fine       = old.fine,
-                volume     = old.volume,
-                length     = old.length,
-                loop_start = old.loop_start,
-                loop_length= old.loop_length,
-                data       = old.data,
-            ))
+            new_samp = Sample(name=new_name, data=old.data)
+            # Copy optional tuning/loop metadata (respect __slots__)
+            new_samp.finetune     = old.finetune
+            new_samp.volume       = old.volume
+            new_samp.repeat_offset = old.repeat_offset
+            new_samp.repeat_length = old.repeat_length
+            modw.add_sample(new_samp)
+
 
     def build(self, verbose: bool = False) -> ModWriter:
         modw = ModWriter(title=f"{self.title} [BPM={self.bpm}]")
@@ -129,13 +128,14 @@ class SongBuilder:
             else:
                 comp = ModComposer(title=uniq_title, just_intonation=self.just_intonation)
                 self._populate(comp, sec)
+                comp._ensure_samples()  # Critical: build sample instruments before pattern & merge
                 pat  = comp.build_patterns_from_grid(length=sec['rows'], triangular=sec['triangular'])
                 self._pattern_cache[param_key] = pat.clone()
                 if verbose:
                     print(f"  Section {i} (generated): {param_key[:8]}")
+                self._merge_samples(modw, comp, section_no=i)
             pat_idx = modw.add_pattern(pat)
             modw.orders.append(pat_idx)
-            self._merge_samples(modw, comp, section_no=i)
         if len(modw.samples) > 31:
             raise ValueError(f"Sample limit exceeded: {len(modw.samples)} > 31 (Protracker max)")
         return modw

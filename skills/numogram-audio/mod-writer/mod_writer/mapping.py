@@ -5,15 +5,16 @@ from typing import Tuple, List
 
 
 # Zone (1-9) → pentatonic degree (C major pentatonic: C D E G A)
+# Remap: zone 9 → A5 (pentatonic apex); zone 0 conceptually REST but not used in composition
 ZONE_TO_NOTE = {
     1: 'C', 2: 'D', 3: 'E', 4: 'G', 5: 'A',
-    6: 'C', 7: 'D', 8: 'E', 9: 'REST'
+    6: 'C', 7: 'D', 8: 'E', 9: 'A'   # 9 = A5 (terminal Plex pitch)
 }
 
-# Octave mapping: zones 1-5 → octave 4, zones 6-8 → octave 5, zone 9 → mute
+# Octave mapping: zones 1-5 → octave 4, zones 6-8 → octave 5, zone 9 → octave 5
 ZONE_TO_OCTAVE = {
     1: 4, 2: 4, 3: 4, 4: 4, 5: 4,
-    6: 5, 7: 5, 8: 5, 9: 4  # 9 = rest (no note)
+    6: 5, 7: 5, 8: 5, 9: 5   # 9 = A5
 }
 
 # Gate (0-36) → effect category
@@ -54,8 +55,8 @@ def effect_from_gate(gate: int):
     return mapping
 
 def note_and_octave_from_zone(zone: int) -> Tuple[str, int]:
-    """Return (note_name, octave) for zone (1-9). Zone 9 returns ('REST', 0)."""
-    if zone == 9:
+    """Return (note_name, octave) for zone (0-9). Zone 0 returns ('REST', 0)."""
+    if zone == 0:
         return ('REST', 0)
     note = ZONE_TO_NOTE[zone]
     octave = ZONE_TO_OCTAVE[zone]

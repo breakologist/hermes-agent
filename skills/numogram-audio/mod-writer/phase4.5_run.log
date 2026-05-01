@@ -1,0 +1,6 @@
+[   INFO   ] MusicExtractorSVM: no classifier models were configured by default
+/home/etym/.hermes/hermes-agent/venv/lib/python3.11/site-packages/librosa/feature/spectral.py:2148: UserWarning: Empty filters detected in mel frequency basis. Some channels will produce empty responses. Try increasing your sampling rate (and fmax) or reducing n_mels.
+  mel_basis = filters.mel(sr=sr, n_fft=n_fft, **kwargs)
+/home/etym/.hermes/hermes-agent/venv/lib/python3.11/site-packages/librosa/feature/spectral.py:2148: UserWarning: Empty filters detected in mel frequency basis. Some channels will produce empty responses. Try increasing your sampling rate (and fmax) or reducing n_mels.
+  mel_basis = filters.mel(sr=sr, n_fft=n_fft, **kwargs)
+[src/libmpg123/id3.c:process_comment():587] error: No comment text / valid description?

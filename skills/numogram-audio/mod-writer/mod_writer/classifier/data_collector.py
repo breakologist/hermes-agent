@@ -76,30 +76,34 @@ def _flatten_features(features: dict) -> np.ndarray:
     }
     vec: List[float] = []
     low = features.get('lowlevel', {})
-    bands = low.get('bands', {})
-    for b in ['sub_bass','bass','low_mid','mid','high_mid','high']:
-        vec.append(bands.get(b, 0.0))
-    timbre = low.get('timbre', {})
-    vec.append(timbre.get('spectral_centroid', 0.0) or 0.0)
-    vec.append(timbre.get('spectral_bandwidth', 0.0) or 0.0)
-    vec.append(timbre.get('spectral_rolloff', 0.0) or 0.0)
-    vec.append(timbre.get('dynamic_complexity', 0.0) or 0.0)
-    rhythm = features.get('rhythm', {})
-    vec.append((rhythm.get('onset_rate') or 0.0) / 200.0)
-    vec.append((rhythm.get('bpm') or 0.0) / 200.0)
-    vec.append((rhythm.get('beat_confidence') or 0.0) / 100.0)
-    key = features.get('key', {})
-    key_idx = KEY_MAP.get(key.get('key'), 0) if key.get('key') else 0
+    # Band energies — stored as flat keys in lowlevel (not under 'bands' sub-dict)
+    for band_name in ['sub_bass','bass','low_mid','mid','high_mid','high']:
+        vec.append(low.get(band_name, 0.0))
+    # Timbre features — also flat keys
+    vec.append(low.get('spectral_centroid_hz', 0.0) or 0.0)
+    vec.append(low.get('spectral_bandwidth_hz', 0.0) or 0.0)
+    vec.append(low.get('spectral_rolloff', 0.0) or 0.0)
+    vec.append(low.get('dynamic_complexity', 0.0) or 0.0)
+    # Rhythm — stored in midlevel
+    mid = features.get('midlevel', {})
+    vec.append((mid.get('onset_rate') or 0.0) / 200.0)
+    vec.append((mid.get('bpm') or 0.0) / 200.0)
+    vec.append((mid.get('beat_confidence', 0.0) or 0.0) / 100.0)
+    # Key — stored as string like 'F#', not a dict
+    key_str = mid.get('key', '')
+    key_idx = KEY_MAP.get(key_str, 0)
     key_onehot = [0]*12
     key_onehot[key_idx] = 1
     vec.extend(key_onehot)
-    scale = key.get('scale') if key else None
-    if scale == 'major':
+    # Scale — stored as string 'major'/'minor' or absent
+    scale_val = mid.get('scale')
+    if scale_val == 'major':
         vec.extend([1,0,0])
-    elif scale == 'minor':
+    elif scale_val == 'minor':
         vec.extend([0,1,0])
     else:
         vec.extend([0,0,1])
+    # Duration — from metadata
     meta = features.get('metadata', {}) or {}
     dur = meta.get('duration_s') or meta.get('duration') or 0.0
     vec.append(float(dur) / 120.0)
@@ -283,10 +287,16 @@ def load_dataset(path: str | None = None) -> dict:
     data = np.load(path)
     # Backward-compat: Phase 3 caches lack 'zones'; derive from y
     zones = data['zones'] if 'zones' in data else np.array([_digital_root(int(a)) for a in data['y']], dtype=np.int8)
+    # meta stored as JSON string; np.load returns a numpy scalar, convert to Python str
+    meta_raw = data['meta']
+    if isinstance(meta_raw, np.ndarray) and meta_raw.size == 1:
+        meta_str = str(meta_raw.item())
+    else:
+        meta_str = str(meta_raw)
     return {
         'X': data['X'],
         'y': data['y'],
         'zones': zones,
-        'meta': json.loads(data['meta'])
+        'meta': json.loads(meta_str)
     }
 

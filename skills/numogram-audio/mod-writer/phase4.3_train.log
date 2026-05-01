@@ -1,0 +1,16 @@
+[trainer] Training zone classifier (Phase 4.3)…
+[trainer-zone] Loading dataset…
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/etym/.hermes/skills/numogram-audio/mod-writer/mod_writer/classifier/trainer.py", line 190, in <module>
+    metrics = train_zone_classifier(dataset_path=args.data)
+  File "/home/etym/.hermes/skills/numogram-audio/mod-writer/mod_writer/classifier/trainer.py", line 109, in train_zone_classifier
+    data = load_dataset(dataset_path)
+  File "/home/etym/.hermes/skills/numogram-audio/mod-writer/mod_writer/classifier/data_collector.py", line 294, in load_dataset
+    'meta': json.loads(data['meta'])
+            ~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/json/__init__.py", line 345, in loads
+    raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+                    f'not {s.__class__.__name__}')
+TypeError: the JSON object must be str, bytes or bytearray, not ndarray
