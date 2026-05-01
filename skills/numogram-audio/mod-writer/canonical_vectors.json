@@ -1,0 +1,482 @@
+[
+  {
+    "root": "C",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      1,
+      4,
+      8
+    ],
+    "notes": [
+      "C",
+      "D#",
+      "G"
+    ],
+    "octaves": [
+      3,
+      3,
+      3
+    ]
+  },
+  {
+    "root": "C",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      1,
+      5,
+      8
+    ],
+    "notes": [
+      "C",
+      "E",
+      "G"
+    ],
+    "octaves": [
+      3,
+      3,
+      3
+    ]
+  },
+  {
+    "root": "C#",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      2,
+      5,
+      9
+    ],
+    "notes": [
+      "C#",
+      "E",
+      "G#"
+    ],
+    "octaves": [
+      3,
+      3,
+      3
+    ]
+  },
+  {
+    "root": "C#",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      2,
+      6,
+      9
+    ],
+    "notes": [
+      "C#",
+      "F",
+      "G#"
+    ],
+    "octaves": [
+      3,
+      3,
+      3
+    ]
+  },
+  {
+    "root": "D",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      3,
+      6,
+      1
+    ],
+    "notes": [
+      "D",
+      "F",
+      "A"
+    ],
+    "octaves": [
+      3,
+      3,
+      3
+    ]
+  },
+  {
+    "root": "D",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      3,
+      7,
+      1
+    ],
+    "notes": [
+      "D",
+      "F#",
+      "A"
+    ],
+    "octaves": [
+      3,
+      3,
+      3
+    ]
+  },
+  {
+    "root": "D#",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      4,
+      7,
+      2
+    ],
+    "notes": [
+      "D#",
+      "F#",
+      "A#"
+    ],
+    "octaves": [
+      3,
+      3,
+      3
+    ]
+  },
+  {
+    "root": "D#",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      4,
+      8,
+      2
+    ],
+    "notes": [
+      "D#",
+      "G",
+      "A#"
+    ],
+    "octaves": [
+      3,
+      3,
+      3
+    ]
+  },
+  {
+    "root": "E",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      5,
+      8,
+      3
+    ],
+    "notes": [
+      "E",
+      "G",
+      "B"
+    ],
+    "octaves": [
+      3,
+      3,
+      3
+    ]
+  },
+  {
+    "root": "E",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      5,
+      9,
+      3
+    ],
+    "notes": [
+      "E",
+      "G#",
+      "B"
+    ],
+    "octaves": [
+      3,
+      3,
+      3
+    ]
+  },
+  {
+    "root": "F",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      6,
+      9,
+      4
+    ],
+    "notes": [
+      "F",
+      "G#",
+      "C"
+    ],
+    "octaves": [
+      3,
+      3,
+      4
+    ]
+  },
+  {
+    "root": "F",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      6,
+      1,
+      4
+    ],
+    "notes": [
+      "F",
+      "A",
+      "C"
+    ],
+    "octaves": [
+      3,
+      3,
+      4
+    ]
+  },
+  {
+    "root": "F#",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      7,
+      1,
+      5
+    ],
+    "notes": [
+      "F#",
+      "A",
+      "C#"
+    ],
+    "octaves": [
+      3,
+      3,
+      4
+    ]
+  },
+  {
+    "root": "F#",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      7,
+      2,
+      5
+    ],
+    "notes": [
+      "F#",
+      "A#",
+      "C#"
+    ],
+    "octaves": [
+      3,
+      3,
+      4
+    ]
+  },
+  {
+    "root": "G",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      8,
+      2,
+      6
+    ],
+    "notes": [
+      "G",
+      "A#",
+      "D"
+    ],
+    "octaves": [
+      3,
+      3,
+      4
+    ]
+  },
+  {
+    "root": "G",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      8,
+      3,
+      6
+    ],
+    "notes": [
+      "G",
+      "B",
+      "D"
+    ],
+    "octaves": [
+      3,
+      3,
+      4
+    ]
+  },
+  {
+    "root": "G#",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      9,
+      3,
+      7
+    ],
+    "notes": [
+      "G#",
+      "B",
+      "D#"
+    ],
+    "octaves": [
+      3,
+      3,
+      4
+    ]
+  },
+  {
+    "root": "G#",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      9,
+      4,
+      7
+    ],
+    "notes": [
+      "G#",
+      "C",
+      "D#"
+    ],
+    "octaves": [
+      3,
+      4,
+      4
+    ]
+  },
+  {
+    "root": "A",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      1,
+      4,
+      8
+    ],
+    "notes": [
+      "A",
+      "C",
+      "E"
+    ],
+    "octaves": [
+      3,
+      4,
+      4
+    ]
+  },
+  {
+    "root": "A",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      1,
+      5,
+      8
+    ],
+    "notes": [
+      "A",
+      "C#",
+      "E"
+    ],
+    "octaves": [
+      3,
+      4,
+      4
+    ]
+  },
+  {
+    "root": "A#",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      2,
+      5,
+      9
+    ],
+    "notes": [
+      "A#",
+      "C#",
+      "F"
+    ],
+    "octaves": [
+      3,
+      4,
+      4
+    ]
+  },
+  {
+    "root": "A#",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      2,
+      6,
+      9
+    ],
+    "notes": [
+      "A#",
+      "D",
+      "F"
+    ],
+    "octaves": [
+      3,
+      4,
+      4
+    ]
+  },
+  {
+    "root": "B",
+    "quality": "minor",
+    "octave": 3,
+    "zones": [
+      3,
+      6,
+      1
+    ],
+    "notes": [
+      "B",
+      "D",
+      "F#"
+    ],
+    "octaves": [
+      3,
+      4,
+      4
+    ]
+  },
+  {
+    "root": "B",
+    "quality": "major",
+    "octave": 3,
+    "zones": [
+      3,
+      7,
+      1
+    ],
+    "notes": [
+      "B",
+      "D#",
+      "F#"
+    ],
+    "octaves": [
+      3,
+      4,
+      4
+    ]
+  }
+]

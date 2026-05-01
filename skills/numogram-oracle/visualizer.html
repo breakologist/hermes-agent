@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Numogram Oracle — Zone Visualizer</title>
+<style>
+  body { margin: 0; background: #0A0A0A; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+  #info { position: fixed; bottom: 20px; left: 20px; color: #00F5FF; font-family: monospace; font-size: 14px; z-index: 10; text-shadow: 0 0 8px #00F5FF44; }
+  #controls { position: fixed; top: 20px; right: 20px; z-index: 10; }
+  #controls input { background: #111; color: #00F5FF; border: 1px solid #00F5FF44; padding: 8px; font-family: monospace; font-size: 14px; width: 200px; }
+  #controls button { background: #00F5FF22; color: #00F5FF; border: 1px solid #00F5FF44; padding: 8px 16px; font-family: monospace; cursor: pointer; margin-left: 4px; }
+  #controls button:hover { background: #00F5FF44; }
+  canvas { display: block; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+</head>
+<body>
+<div id="controls">
+  <input type="text" id="seedInput" placeholder="Enter seed or text..." value="192855">
+  <button onclick="newOracle()">Oracle</button>
+  <button onclick="newRandom()">Random</button>
+</div>
+<div id="info"></div>
+<script>
+// ═══════════════════════════════════════
+//  NUMOGRAM ORACLE VISUALIZER
+//  Seed → Zone → Algorithmic Philosophy
+// ═══════════════════════════════════════
+
+let particles = [];
+let seed = 192855;
+let zone = 3;
+let frameCount_ = 0;
+let fieldOffset = 0;
+
+const ZONE_COLORS = [
+  [20, 20, 30],     // 0: void — near black
+  [255, 160, 50],   // 1: gulp — amber/gold
+  [180, 80, 80],    // 2: stutter — fractured red
+  [0, 245, 255],    // 3: buzz — cyan
+  [140, 40, 20],    // 4: growl — deep red-brown
+  [200, 180, 255],  // 5: hiss — violet
+  [100, 200, 180],  // 6: static — muted teal
+  [255, 200, 150],  // 7: sigh — warm cream
+  [220, 160, 180],  // 8: moan — rose
+  [180, 80, 255],   // 9: grunt — purple
+];
+
+const ZONE_NAMES = ["eiaoung","gl","dt","zx","skr","ktt","tch","pb","mnm","tn"];
+const ZONE_DESCS = [
+  "Void Resonance", "Collapsed Gasp", "Fractured Boundary",
+  "Turbulent Spiral", "Reptilian Emergence", "Pressurized Hiss",
+  "Recursive Consumption", "Ascending Breath", "Lullaby Drift", "Seized Vortex"
+];
+
+function digitalRoot(n) {
+  n = Math.abs(Math.floor(n));
+  if (n === 0) return 9;
+  while (n >= 10) n = String(n).split('').reduce((a,b) => a + parseInt(b), 0);
+  return n;
+}
+
+function aqValue(text) {
+  let sum = 0;
+  for (let c of text.toUpperCase()) {
+    if (c >= 'A' && c <= 'Z') sum += c.charCodeAt(0) - 55;
+    else if (c >= '0' && c <= '9') sum += parseInt(c);
+  }
+  return sum;
+}
+
+function deriveZone(s) {
+  return digitalRoot(s) || 9;
+}
+
+function seededRandom(s) {
+  let x = Math.sin(s * 9301 + 49297) * 49297;
+  return x - Math.floor(x);
+}
+
+function noiseAt(x, y, t, scale, octaves) {
+  let val = 0;
+  let amp = 1;
+  let freq = scale;
+  for (let i = 0; i < octaves; i++) {
+    val += amp * (noise(x * freq + fieldOffset, y * freq, t * 0.01) - 0.5);
+    amp *= 0.5;
+    freq *= 2;
+  }
+  return val;
+}
+
+class Particle {
+  constructor(x, y, z) {
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.vy = 0;
+    this.zone = z;
+    this.life = 1.0;
+    this.age = 0;
+    this.maxAge = 300 + seededRandom(seed + this.x * 100 + this.y) * 400;
+    this.size = 1 + seededRandom(seed + this.x + this.y * 50) * 2;
+    this.phase = seededRandom(seed + this.x * 7 + this.y * 13) * TWO_PI;
+    this.drag = 0.95 + seededRandom(seed + this.y * 31) * 0.04;
+    this.color = ZONE_COLORS[z];
+  }
+
+  update(t) {
+    this.age++;
+    this.life = max(0, 1 - this.age / this.maxAge);
+    let fx = 0, fy = 0;
+    let s = 0.003;
+    let nx = this.x * s;
+    let ny = this.y * s;
+
+    switch (this.zone) {
+      case 0: // Void — barely there drift
+        fx = noiseAt(nx, ny, t, 0.002, 1) * 0.1;
+        fy = noiseAt(nx + 100, ny + 100, t, 0.002, 1) * 0.1;
+        this.drag = 0.998;
+        break;
+      case 1: // Gasp — radial burst outward from center
+        let dx1 = this.x - width/2, dy1 = this.y - height/2;
+        let d1 = max(1, sqrt(dx1*dx1 + dy1*dy1));
+        fx = (dx1/d1) * 0.3 * this.life;
+        fy = (dy1/d1) * 0.3 * this.life;
+        this.drag = 0.97;
+        break;
+      case 2: // Fracture — competing attractors
+        let a1x = width*0.3, a1y = height*0.3;
+        let a2x = width*0.7, a2y = height*0.7;
+        let d2a = dist(this.x, this.y, a1x, a1y);
+        let d2b = dist(this.x, this.y, a2x, a2y);
+        let attract = (sin(t * 0.02 + this.phase) > 0) ? 1 : -1;
+        if (attract > 0) { fx += (a1x-this.x)/d2a*0.5; fy += (a1y-this.y)/d2a*0.5; }
+        else { fx += (a2x-this.x)/d2b*0.5; fy += (a2y-this.y)/d2b*0.5; }
+        fx += noiseAt(nx, ny, t, 0.005, 2) * 0.8;
+        fy += noiseAt(nx+50, ny+50, t, 0.005, 2) * 0.8;
+        break;
+      case 3: // Spiral — rotational flow field outward
+        let angle3 = noiseAt(nx, ny, t, 0.004, 3) * TWO_PI * 2;
+        let speed3 = noiseAt(nx+200, ny+200, t, 0.003, 2) * 2 + 0.5;
+        fx = cos(angle3) * speed3;
+        fy = sin(angle3) * speed3;
+        // outward bias
+        let dx3 = this.x - width/2, dy3 = this.y - height/2;
+        let d3 = max(1, sqrt(dx3*dx3 + dy3*dy3));
+        fx += dx3/d3 * 0.2;
+        fy += dy3/d3 * 0.2;
+        break;
+      case 4: // Reptilian — swarming groups
+        let cx = width/2 + cos(t*0.01 + this.phase) * width*0.3;
+        let cy = height/2 + sin(t*0.008 + this.phase*0.7) * height*0.3;
+        fx = (cx - this.x) * 0.002;
+        fy = (cy - this.y) * 0.002;
+        fy += 0.15; // sinking
+        fx += noiseAt(nx, ny, t, 0.006, 2) * 0.3;
+        break;
+      case 5: // Hiss — radial compression inward
+        let dx5 = this.x - width/2, dy5 = this.y - height/2;
+        let d5 = max(1, sqrt(dx5*dx5 + dy5*dy5));
+        let compress = 0.3 + sin(t*0.01)*0.1;
+        fx = -(dx5/d5) * compress;
+        fy = -(dy5/d5) * compress;
+        fx += noiseAt(nx, ny, t, 0.008, 1) * 0.2;
+        fy += noiseAt(nx+300, ny+300, t, 0.008, 1) * 0.2;
+        break;
+      case 6: // Recursive — moebius flow (wraps with flip)
+        let angle6 = noiseAt(nx, ny, t, 0.005, 3) * TWO_PI;
+        fx = cos(angle6) * 1.5;
+        fy = sin(angle6) * 1.5;
+        // moebius: twist on wrap
+        if (this.x < 0) this.x = width;
+        if (this.x > width) this.x = 0;
+        if (this.y < 0) { this.y = height; this.phase += PI; }
+        if (this.y > height) { this.y = 0; this.phase += PI; }
+        break;
+      case 7: // Rise — upward force with lateral drift
+        fy = -0.8 - noiseAt(nx, ny, t, 0.003, 1) * 0.3;
+        fx = noiseAt(nx+100, ny, t, 0.004, 2) * 0.5;
+        this.drag = 0.98;
+        break;
+      case 8: // Lullaby — barely moving, looping
+        fx = sin(t*0.003 + this.phase) * 0.1;
+        fy = cos(t*0.004 + this.phase*0.7) * 0.1;
+        fx += noiseAt(nx, ny, t, 0.002, 1) * 0.15;
+        fy += noiseAt(nx+50, ny+50, t, 0.002, 1) * 0.15;
+        this.drag = 0.995;
+        break;
+      case 9: // Plex — spiral inward toward center
+        let dx9 = width/2 - this.x, dy9 = height/2 - this.y;
+        let d9 = max(1, sqrt(dx9*dx9 + dy9*dy9));
+        let pull = 0.5 + (1 - d9/(width*0.5)) * 1.5;
+        let angle9 = atan2(dy9, dx9) + PI/2; // tangential
+        fx = cos(angle9) * pull * 0.5 + dx9/d9 * pull * 0.3;
+        fy = sin(angle9) * pull * 0.5 + dy9/d9 * pull * 0.3;
+        break;
+    }
+
+    this.vx += fx;
+    this.vy += fy;
+    this.vx *= this.drag;
+    this.vy *= this.drag;
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // wrap
+    if (this.zone !== 6 && this.zone !== 7) {
+      if (this.x < -10) this.x = width + 10;
+      if (this.x > width + 10) this.x = -10;
+      if (this.y < -10) this.y = height + 10;
+      if (this.y > height + 10) this.y = -10;
+    }
+  }
+
+  draw() {
+    let alpha = this.life * 180;
+    let spd = sqrt(this.vx*this.vx + this.vy*this.vy);
+    let c = this.color;
+
+    // brightness varies with speed
+    let b = min(1, spd * 0.5 + 0.3);
+    stroke(c[0]*b, c[1]*b, c[2]*b, alpha);
+    strokeWeight(this.size * this.life);
+    point(this.x, this.y);
+  }
+}
+
+function initParticles() {
+  particles = [];
+  let count = 800;
+  noiseSeed(seed);
+  randomSeed(seed);
+
+  for (let i = 0; i < count; i++) {
+    let x, y;
+    switch (zone) {
+      case 0: // void — scattered
+        x = random(width); y = random(height); break;
+      case 1: // gasp — start at center
+        x = width/2 + random(-20, 20); y = height/2 + random(-20, 20); break;
+      case 5: // hiss — start at edges
+        x = random(width); y = (random() > 0.5) ? random(50) : height - random(50); break;
+      case 7: // rise — start at bottom
+        x = random(width); y = height - random(height*0.3); break;
+      case 9: // plex — scattered, will spiral in
+        let a = random(TWO_PI); let r = random(width*0.4);
+        x = width/2 + cos(a)*r; y = height/2 + sin(a)*r; break;
+      default:
+        x = random(width); y = random(height);
+    }
+    particles.push(new Particle(x, y, zone));
+  }
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  background(10, 10, 10);
+  initParticles();
+  updateInfo();
+}
+
+function draw() {
+  frameCount_++;
+
+  // fade background — trail effect
+  let fadeAlpha = (zone === 0) ? 8 : (zone === 8) ? 4 : 12;
+  noStroke();
+  fill(10, 10, 10, fadeAlpha);
+  rect(0, 0, width, height);
+
+  fieldOffset += 0.0005;
+  let t = frameCount_ * 0.016;
+
+  for (let p of particles) {
+    p.update(t);
+    p.draw();
+
+    // respawn dead particles
+    if (p.life <= 0) {
+      let nx, ny;
+      if (zone === 1) { nx = width/2 + random(-10,10); ny = height/2 + random(-10,10); }
+      else if (zone === 7) { nx = random(width); ny = height - random(20); }
+      else if (zone === 9) { let a=random(TWO_PI); nx=width/2+cos(a)*random(width*0.3); ny=height/2+sin(a)*random(width*0.3); }
+      else { nx = random(width); ny = random(height); }
+      p.x = nx; p.y = ny; p.vx = 0; p.vy = 0;
+      p.life = 1.0; p.age = 0;
+      p.maxAge = 300 + random() * 400;
+      p.phase = random(TWO_PI);
+    }
+  }
+
+  // center glow for zones 9 (Plex) and 5 (Hiss)
+  if (zone === 9 || zone === 5) {
+    let glowSize = (zone === 9) ? 40 + sin(t)*10 : 30;
+    let glowAlpha = 20 + sin(t*2)*10;
+    let gc = ZONE_COLORS[zone];
+    noStroke();
+    for (let r = glowSize; r > 0; r -= 2) {
+      fill(gc[0], gc[1], gc[2], glowAlpha * (1 - r/glowSize));
+      ellipse(width/2, height/2, r*2, r*2);
+    }
+  }
+
+  // Zone 0: occasional flicker
+  if (zone === 0 && frameCount_ % 120 === 0) {
+    let gc = ZONE_COLORS[0];
+    fill(gc[0], gc[1], gc[2], 40);
+    noStroke();
+    ellipse(random(width), random(height), 3, 3);
+  }
+}
+
+function updateInfo() {
+  let dr = digitalRoot(seed);
+  let syzygy = 9 - zone;
+  let current = abs(zone - syzygy);
+  let html = `
+    Seed: ${seed}<br>
+    Zone: ${zone} (${ZONE_NAMES[zone]})<br>
+    Philosophy: ${ZONE_DESCS[zone]}<br>
+    Polarity: ${zone % 2 === 0 ? '−' : '+'}<br>
+    Syzygy: ${zone}::${syzygy}<br>
+    Current: ${current}<br>
+    Digital Root: ${dr}
+  `;
+  document.getElementById('info').innerHTML = html;
+}
+
+function newOracle() {
+  let input = document.getElementById('seedInput').value;
+  if (isNaN(input)) {
+    seed = aqValue(input);
+  } else {
+    seed = parseInt(input);
+  }
+  zone = deriveZone(seed);
+  background(10, 10, 10);
+  initParticles();
+  updateInfo();
+}
+
+function newRandom() {
+  seed = Math.floor(Math.random() * 999999);
+  zone = deriveZone(seed);
+  document.getElementById('seedInput').value = seed;
+  background(10, 10, 10);
+  initParticles();
+  updateInfo();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  background(10, 10, 10);
+}
+</script>
+</body>
+</html>

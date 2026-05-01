@@ -1,0 +1,8 @@
+name: numogram-council
+description: Backend-agnostic model council using Ollama or any OpenAI-compatible API (llama.cpp, vLLM).
+version: "2.0"
+author: Etym + Hermes
+provides_tools:
+  - council_decide
+provides_hooks: []
+kind: standalone

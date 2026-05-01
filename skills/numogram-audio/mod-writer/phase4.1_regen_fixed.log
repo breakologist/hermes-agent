@@ -1,0 +1,29 @@
+=== Phase 4.1: Dataset Generation ===
+Zones: all (1-9)  Seeds/zone: 100  use_all: False
+Output: /home/etym/.hermes/skills/numogram-audio/mod-writer/mod_writer/classifier/artifacts/dataset_balanced_900.npz
+[dataset] Balanced: 100 seeds × 9 zones = 900 examples
+  [50/900] done
+  [100/900] done
+  [150/900] done
+  [200/900] done
+  [250/900] done
+  [300/900] done
+  [350/900] done
+  [400/900] done
+  [450/900] done
+  [500/900] done
+  [550/900] done
+  [600/900] done
+  [650/900] done
+  [700/900] done
+  [750/900] done
+  [800/900] done
+  [850/900] done
+  [900/900] done
+[dataset] Saved X=(900, 29), y=(900,), zones=(900,) → /home/etym/.hermes/skills/numogram-audio/mod-writer/mod_writer/classifier/artifacts/dataset_balanced_900.npz
+
+Done. Generated 900 examples across zones [np.int8(1), np.int8(2), np.int8(3), np.int8(4), np.int8(5), np.int8(6), np.int8(7), np.int8(8), np.int8(9)]
+X shape: (900, 29), y shape: (900,), zones shape: (900,)
+Artifacts saved to: /home/etym/.hermes/skills/numogram-audio/mod-writer/mod_writer/classifier/artifacts/dataset_balanced_900.npz
+
+Next (Phase 4.2): re-run with --use-all for expanded feature set

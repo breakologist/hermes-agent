@@ -1,0 +1,41 @@
+# Numogram Council Configuration
+# ================================
+# Edit this file to change council members, fallbacks, and temperature modes.
+# Models are loaded serially via ollama (one in VRAM at a time).
+
+council_members:
+  - name: qwen-coder
+    model: qwen2.5-coder:14b
+    fallback: qwen2.5:7b-instruct
+    temperature_mode: analytical
+    max_tokens: 800
+    description: "Reasoning and code analysis"
+
+  - name: mythomax
+    model: mythomax-l2-13b
+    fallback: lelantos-7b
+    temperature_mode: creative
+    max_tokens: 800
+    description: "Creative and mythic thinking"
+
+  - name: gemma3
+    model: gemma3:12b-it
+    fallback: qwen3.5-9b-heretic
+    temperature_mode: balanced
+    max_tokens: 800
+    description: "Google perspective, balanced reasoning"
+
+judge:
+  name: mimo-v2-pro
+  model: mimo-v2-pro
+  fallback: hermes-14b
+  temperature_mode: analytical
+  max_tokens: 1500
+  description: "Cloud judge with local fallback"
+
+temperature_modes:
+  analytical: 0.3
+  balanced: 0.7
+  creative: 0.9
+
+ollama_base_url: http://localhost:11434
