@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mod-writer"
+version = "0.6.0"
+description = "Minimal .mod (Protracker) module writer with numogram-native extensions"
+requires-python = ">=3.11"
+authors = [{name = "Hermes Agent + CCRU lineage"}]
+license = {text = "MIT"}
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.14",
+]
+[project.optional-dependencies]
+# Basic MIR stack: beat tracking, chroma, onset profiling
+classifier = ["scikit-learn", "joblib"]  # Phase 3: AQ prediction from MIR features
+
+mir = ["librosa>=0.10", "madmom>=0.16"]
+# Premium MIR: 2000+ features from Essentia
+essentia = ["essentia>=2.1"]
+# Deep tagging: genre/instrument/mood via pre-trained nets
+highlevel = ["musicnn>=0.3", "openl3>=0.1"]
+# Everything
+all = ["librosa>=0.10", "madmom>=0.16", "essentia>=2.1", "musicnn>=0.3", "openl3>=0.1"]
+
+[tool.setuptools]
+packages = {find = {}}
+
+[project.scripts]
+mod-writer = "mod_writer.cli:main"

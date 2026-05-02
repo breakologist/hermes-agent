@@ -1,0 +1,1031 @@
+<script>
+
+// ─── SYNX CIPHER (from ciphers.news / qliphoth.systems) ───
+// Hue 180, Sat 44, Light 66 — cyan glow
+// Authoritative mapping extracted from ciphers.news/calc/ciphers.js
+const SYNX_MAP = {};
+const SYNX_VALUES = [
+  1, 2, 3, 4, 5, 6, 7, 9, 10, 12,        // 0-9
+  14, 15, 18, 20, 21, 28, 30, 35, 36, 42, // a-j
+  45, 60, 63, 70, 84, 90, 105, 126, 140, 180, // k-t
+  210, 252, 315, 420, 630, 1260            // u-z
+];
+for (let i = 0; i < 10; i++) SYNX_MAP[i.toString()] = SYNX_VALUES[i];
+for (let i = 0; i < 26; i++) {
+  let c = String.fromCharCode(97 + i);
+  SYNX_MAP[c] = SYNX_VALUES[10 + i];
+  SYNX_MAP[c.toUpperCase()] = SYNX_VALUES[10 + i];
+}
+
+function synxValue(text) {
+  let total = 0;
+  for (let char of text.toUpperCase()) if (char in SYNX_MAP) total += SYNX_MAP[char];
+  return total;
+}
+
+function synxDigitalRoot(n) {
+  n = Math.abs(Math.floor(n));
+  if (n === 0) return 0;
+  // Synx digital root in base-36 space: 1 + (n-1) mod 35
+  return 1 + (n - 1) % 35;
+}
+
+let synxEnabled = false;
+function toggleSynx() {
+  synxEnabled = document.getElementById('synxToggle')?.checked || document.getElementById('yxshhToggle')?.checked;
+  updateAQInfo();
+}</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Numogram Oracle v7 — Djynxxogram + Synx + T'ai Hsuan</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&amp;display=swap');
+  body { margin: 0; background: #050505; overflow: hidden; font-family: 'IBM Plex Mono', monospace; color: #00F5FF; }
+  #header { position: fixed; top: 5px; left: 50%; transform: translateX(-50%); font-size: 9px; letter-spacing: 1px; opacity: 0.5; z-index: 100; }
+  #controls { position: fixed; top: 10px; right: 10px; z-index: 110; background: rgba(5,5,5,0.95); padding: 5px 7px; border: 1px solid #00F5FF33; border-radius: 2px; display: flex; flex-direction: column; gap: 3px; }
+  .base-toggle { display: flex; gap: 1px; }
+  .base-btn { flex: 1; padding: 2px 5px; font-size: 8px; border: 1px solid #00F5FF44; background: #111; color: #00F5FF; cursor: pointer; }
+  .base-btn.active { background: #00F5FF22; border-color: #00F5FF; font-weight: 600; }
+  #seedInput { background: #111; color: #00F5FF; border: 1px solid #00F5FF44; padding: 3px 5px; font-size: 9px; width: 160px; }
+  #aqInput { background: #111; color: #ffcc44; border: 1px solid #ffcc4444; padding: 3px 5px; font-size: 9px; width: 160px; }
+  button { background: #00F5FF11; color: #00F5FF; border: 1px solid #00F5FF44; padding: 2px 6px; font-size: 8px; cursor: pointer; }
+  button:hover { background: #00F5FF33; }
+  #zoneSelector { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 110; display: flex; gap: 2px; background: rgba(5,5,5,0.93); padding: 3px 6px; border: 1px solid #00F5FF22; border-radius: 2px; }
+  .zoneBtn { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #fff2; cursor: pointer; transition: transform 0.1s; }
+  .zoneBtn:hover { transform: scale(1.3); }
+  .zoneBtn.active { box-shadow: 0 0 7px currentColor; border-color: #fff; }
+  #info { position: fixed; bottom: 48px; left: 10px; font-size: 8.5px; line-height: 1.3; background: rgba(5,5,5,0.91); padding: 5px 7px; border: 1px solid #00F5FF22; max-width: 235px; z-index: 100; }
+  #syzygyViz { position: fixed; top: 55px; left: 10px; width: 120px; height: 120px; border: 1px solid #00F5FF22; background: rgba(5,5,5,0.8); z-index: 90; }
+  #baseInfo { position: fixed; top: 55px; right: 10px; font-size: 7px; line-height: 1.15; background: rgba(5,5,5,0.89); padding: 3px 5px; border: 1px solid #00F5FF22; max-width: 158px; z-index: 95; color: #00F5FF88; }
+  #matrixPanel { position: fixed; bottom: 10px; right: 10px; width: 168px; height: 168px; background: rgba(5,5,5,0.95); border: 1px solid #00F5FF33; z-index: 105; font-size: 6.5px; padding: 2px; display: none; }
+  #matrixPanel.show { display: block; }
+  #matrixTitle { font-size: 7px; margin-bottom: 1px; color: #00F5FF88; text-align: center; }
+  #matrixGrid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 0.5px; }
+  .matrixCell { width: 13.5px; height: 13.5px; background: #111; border: 1px solid #00F5FF11; display: flex; align-items: center; justify-content: center; font-size: 5.5px; cursor: pointer; transition: all 0.07s; }
+  .matrixCell:hover { border-color: #fff; z-index: 10; }
+  .matrixCell.syzygy { background: #00F5FF22; border-color: #00F5FF66; }
+  .matrixCell.decadence { background: #ffcc4422; border-color: #ffcc4466; }
+  .matrixCell.current { box-shadow: 0 0 4px #fff; border-color: #fff; }
+  .matrixCell.gate { background: #ff336622; border-color: #ff3366; }
+  .matrixCell.self { background: #ffcc44; color: #000; font-weight: 700; }
+  #contextBox { position: fixed; top: 188px; right: 10px; width: 168px; background: rgba(5,5,5,0.91); border: 1px solid #00F5FF22; padding: 4px 5px; font-size: 6.5px; line-height: 1.2; color: #00F5FF99; z-index: 95; display: none; }
+  #contextBox.show { display: block; }
+  #quasiphonicLabel { position: fixed; top: 55px; left: 140px; background: rgba(0,0,0,0.85); border: 1px solid #ffcc44; padding: 2px 5px; font-size: 8px; color: #ffcc44; z-index: 120; display: none; pointer-events: none; }
+  canvas { display: block; }
+  #triangleOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  #taiHsuanPanel { position: fixed; top: 55px; left: 280px; background: rgba(5,5,5,0.96); border: 1px solid #ffcc4488; padding: 6px 8px; z-index: 115; font-size: 7.5px; line-height: 1.3; color: #ffcc44; display: none; min-width: 130px; }
+  #taiHsuanPanel.show { display: block; }
+  .tetragram-box { display: inline-block; vertical-align: top; margin: 2px 4px; text-align: center; }
+  .tetragram-title { font-size: 7px; color: #ffcc4488; margin-bottom: 2px; }
+  .tetra-line { height: 3px; margin: 2px 0; background: #ffcc44; }
+  .tetra-line.earth { background: linear-gradient(to right, #ffcc44 40%, transparent 40%, transparent 60%, #ffcc44 60%); }
+  .tetra-line.man { background: linear-gradient(to right, #ffcc44 25%, transparent 25%, transparent 40%, #ffcc44 40%, #ffcc44 60%, transparent 60%, transparent 75%, #ffcc44 75%); }
+  .tai-hsuan-divider { border-top: 1px solid #ffcc4433; margin: 4px 0; }
+  .tai-hsuan-reading { font-size: 7px; color: #ffcc44cc; margin-top: 4px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+</head>
+<body>
+<div id="header">NUMOGRAM ORACLE v7 — DJYNXXOGRAM + SYNX + T'AI HSUAN (Base-36 + Dual-Cipher + Triadic Divination)</div>
+
+<div id="controls">
+  <div class="base-toggle">
+    <button class="base-btn active" id="btn-base-10" onclick="switchBase(10)">DEC 10</button>
+    <button class="base-btn" id="btn-base-16" onclick="switchBase(16)">MEM 16</button>
+    <button class="base-btn" id="btn-base-36" onclick="switchBase(36)">DJY 36</button>
+  </div>
+  <div style="display:flex; gap:2px; align-items:center; margin-top:3px;">
+    <label title="Show Synx value alongside AQ" style="display:flex; align-items:center; gap:3px; font-size:7.5px; color:#00F5FFcc; cursor:pointer;">
+      <input type="checkbox" id="synxToggle" onchange="toggleSynx()"> <span style="color:#00CCFF;font-weight:600;">SYNX</span>
+    </label>
+    <label title="Show Yxshh (alias for Synx)" style="display:flex; align-items:center; gap:3px; font-size:7.5px; color:#00F5FFcc; cursor:pointer; margin-left:6px;">
+      <input type="checkbox" id="yxshhToggle" onchange="toggleSynx()"> <span style="color:#00CCFF66;">YXSHH</span>
+    </label>
+    <label title="T'ai Hsuan Ching two-tetragram casting" style="display:flex; align-items:center; gap:3px; font-size:7.5px; color:#ffcc44cc; cursor:pointer; margin-left:6px;">
+      <input type="checkbox" id="taiHsuanToggle" onchange="toggleTaiHsuan()"> <span style="color:#ffcc44;font-weight:600;">T'AI HSUAN</span>
+    </label>
+    <input type="text" id="seedInput" value="192855" style="width:142px;">
+    <button onclick="newOracle()" style="padding:2px 5px;">GO</button>
+  </div>
+  <div style="display:flex; gap:2px; align-items:center;">
+    <input type="text" id="aqInput" placeholder="AQ TEXT" style="width:142px;" oninput="updateAQInfo()">
+    <button onclick="setZoneFromAQ()" style="padding:2px 5px;">SET</button>
+  </div>
+  <div style="display:flex; gap:2px;">
+    <button onclick="newRandom()" style="flex:1; font-size:7.5px;">RANDOM</button>
+    <button onclick="togglePause()" id="pauseBtn" style="flex:1; font-size:7.5px;">PAUSE</button>
+    <button onclick="animateTriangularSyzygy()" style="flex:1; font-size:7px; background:#ff336611;">TRIANGLE</button>
+  </div>
+  <div style="display:flex; align-items:center; gap:3px; font-size:7.5px;">
+    <span style="opacity:0.5;">DENSITY</span>
+    <input type="range" id="densitySlider" min="80" max="1100" step="25" value="560" style="width:72px; accent-color:#00F5FF;" oninput="updateDensity()">
+    <span id="densityVal" style="width:22px; text-align:right; font-size:7.5px;">560</span>
+  </div>
+</div>
+
+<canvas id="syzygyViz" width="120" height="120"></canvas>
+<div id="quasiphonicLabel"></div>
+<div id="taiHsuanPanel">
+  <div style="font-size:7px; color:#ffcc4488; margin-bottom:4px; text-align:center;">T'AI HSUAN CHING — TWO TETRAGRAMS</div>
+  <div id="tetragramUpper" class="tetragram-box"></div>
+  <div id="tetragramLower" class="tetragram-box"></div>
+  <div class="tai-hsuan-divider"></div>
+  <div id="taiHsuanReading" class="tai-hsuan-reading"></div>
+</div>
+
+<div id="info"></div>
+<div id="baseInfo"></div>
+<div id="matrixPanel">
+  <div id="matrixTitle">C(10,2)=45 • SYZYGY (cyan) • DECADENCE (gold) • TRIANGULAR GATES (red) • Zone 5 self-decadence (5+5=10)</div>
+  <div id="matrixGrid"></div>
+    <svg id="triangleOverlay"></svg>
+</div>
+<div id="contextBox">
+  <b>Zone 5 Self-Decadence (from Aamodt + c-ten-fortyfive-fiveness.md)</b><br>
+  5+5=10 • Phase change, cardiac rebound, the hinge where current hits itself and doubles back. The only zone without an external decadence partner — it reaches into itself. Golden ratio geometry, self-similar recursion. "The fifth way of saying five is the one that doesn't need a partner."
+</div>
+
+<div id="zoneSelector"></div>
+
+<script>
+// ==================== FULL COMPLETE v6 CODE ====================
+// All features from v4 + quasiphonic labels + triangular gate button + rich context from uploaded files
+// AQ values from AQ_DICTIONARY.md integrated and verified
+
+let particles = [];
+let seed = 192855;
+let zone = 0;
+let currentBase = 10;
+let frameCount_ = 0;
+let fieldOffset = 0;
+let paused = false;
+let particleCount = 560;
+
+const BASE_CONFIG = {
+  10: {
+    name: "DECIMAL", zoneCount: 10,
+    colors: [[28,28,38],[255,175,55],[195,85,85],[0,225,255],[155,45,25],[185,165,255],[75,215,195],[255,205,155],[225,165,185],[165,85,255]],
+    names: ["Void","Surge","Hold","Warp","Sink","Hinge","Vortex","Blood","Rise","Plex"],
+    regions: ["plex","time","time","warp","time","time","warp","time","time","plex"],
+    demons: ["Uttunul","—","Oddubb","Djynxx","Katak","—","Djynxx","Oddubb","Murrumur","Uttunul"],
+    descs: ["Abyssal Origin — The void before the first count","Initiating Spark — The first door opens","Renewed Drive — Oddubb's mirror recursion","Chaotic Attractor — Djynxx triangularity (C(10,2)=45)","Closure & Return — Katak's catastrophic sink","Central Ruler — The hinge. Self-decadence 5+5=10","Upper Source — Vortical recursion (CCRU=69→6)","Heavy Sink — Blood and DNA current","Receptive Pause — The mouth of ascent","Terminal Abyss — Uttunul iron core"],
+    syzygyPartner: (z) => 9 - z, currentName: (z) => Math.abs(z - (9 - z))
+  },
+  16: {
+    name: "MEMORY MAP", zoneCount: 16,
+    colors: [[25,25,35],[255,170,50],[190,80,80],[0,220,255],[150,40,20],[180,160,255],[70,210,190],[255,200,150],[220,160,180],[160,80,255],[100,200,255],[255,120,180],[80,255,200],[200,80,255],[255,180,100],[40,40,60]],
+    names: ["Void","Surge","Hold","Warp","Sink","Hinge","Vortex","Blood","Rise","Plex","Echo","Fracture","Spiral","Abyss","Core","Null"],
+    regions: ["plex","time","time","warp","time","time","warp","time","time","plex","memory","memory","memory","abyss","core","null"],
+    demons: ["Uttunul","—","Oddubb","Djynxx","Katak","—","Djynxx","Oddubb","Murrumur","Uttunul","—","—","—","—","—","—"],
+    descs: ["Abyssal Origin","Initiating Spark","Renewed Drive","Chaotic Attractor","Closure & Return","Central Ruler","Upper Source","Heavy Sink","Receptive Pause","Terminal Abyss","Echo Chamber","Fracture Point","Spiral Descent","Abyssal Sink","Iron Core","Null Pointer"],
+    syzygyPartner: (z) => 15 - z, currentName: (z) => Math.abs(z - (15 - z))
+  },
+  36: {
+    name: "DJYNXXOGRAM", zoneCount: 36,
+    colors: [[20,20,30],[255,160,40],[180,70,70],[0,210,240],[140,35,15],[170,150,255],[60,200,180],[255,190,140],[210,150,170],[150,70,255],[90,190,240],[240,100,170],[70,240,190],[190,70,240],[240,170,90],[30,30,50],[255,140,30],[160,60,60],[0,190,220],[120,30,10],[150,130,240],[50,180,160],[240,170,120],[190,130,150],[130,60,240],[80,170,220],[220,90,150],[60,220,170],[170,60,220],[220,150,80],[25,25,40],[250,130,25],[150,55,55],[0,175,200],[110,25,8],[140,120,230]],
+    names: ["Void","Surge","Hold","Warp","Sink","Hinge","Vortex","Blood","Rise","Plex","Echo","Fracture","Spiral","Abyss","Core","Null","Jinn","Strobe","Mesh","Turbul","Chrono","Vortex2","Swarm","Null2","Djynn","Triang","Plex2","Gate36","666","Uttun","Iron","Cthell","Yuggoth","Shogg","Azath","Nyarl"],
+    regions: ["plex","time","time","warp","time","time","warp","time","time","plex","memory","memory","memory","abyss","core","null","warp","warp","warp","plex","time","warp","warp","plex","warp","warp","plex","plex","plex","plex","plex","plex","plex","warp","warp","warp"],
+    demons: ["Uttunul","—","Oddubb","Djynxx","Katak","—","Djynxx","Oddubb","Murrumur","Uttunul","—","—","—","—","—","—","Djynxx","Djynxx","Djynxx","Uttunul","—","Djynxx","Djynxx","Uttunul","Djynxx","Djynxx","Uttunul","Uttunul","Uttunul","Uttunul","Uttunul","Uttunul","Uttunul","Djynxx","Djynxx","Djynxx"],
+    descs: ["Abyssal Origin","Initiating Spark","Renewed Drive","Chaotic Attractor","Closure & Return","Central Ruler","Upper Source","Heavy Sink","Receptive Pause","Terminal Abyss","Echo Chamber","Fracture Point","Spiral Descent","Abyssal Sink","Iron Core","Null Pointer","Jinn of the Warp","Strobe Entity","Mesh Swarm","Turbulent Null","Chrono Djynn","Vortex Twin","Swarmachine","Null2","Djynn Prime","Triang Beast","Plex2","Gate36","666","Uttunul Prime","Iron Ocean","Yuggoth Shadow","Shoggoth Bloom","Azathoth Core","Nyarlathotep"],
+    syzygyPartner: (z) => 35 - z, currentName: (z) => Math.abs(z - (35 - z))
+  }
+};
+let cfg = BASE_CONFIG[10];
+
+// Quasiphonic particles (from quasiphonic-particles.md)
+const QUASIPHONIC = {
+  0: { sound: "eiaoung", desc: "Silent whisper of the ulterior depths" },
+  1: { sound: "gl", desc: "Gulp or gagging reflex — sublaryngeal collapse" },
+  2: { sound: "dt", desc: "Stuttering tic or th-sound — imploded fricative" },
+  3: { sound: "zx", desc: "Buzzing hiss — buzz-cutter sonics, swarming insectoid" },
+  4: { sound: "skr", desc: "Aggressive growl — anthropo-reptiloid precursor" },
+  5: { sound: "ktt", desc: "Persecutory hiss with spittle — cardiac rebound" },
+  6: { sound: "tch", desc: "Sound of static / chewing — vortical recursion" },
+  7: { sound: "pb", desc: "Sigh of relaxation, lips flapping" },
+  8: { sound: "mnm", desc: "Moan of pleasure or lullaby hum" },
+  9: { sound: "tn", desc: "Grunt of pleasure or rage — primal terminal" }
+};
+
+// AQ Dictionary (from AQ_DICTIONARY.md — verified)
+const AQ_DICTIONARY = {
+  "NUMOGRAM": 174,
+  "CCRU": 69,
+  "CYBERNETIC CULTURE RESEARCH UNIT": 606,
+  "PANDEMONIUM MATRIX": 363,
+  "DJYNXX": 174,
+  "UTTUNUL": 225,
+  "AQ": 36,
+  "THE DECIMAL LABYRINTH": 360
+};
+
+// Canonical AQ
+const AQ_MAP = {};
+for (let i = 0; i < 10; i++) AQ_MAP[i.toString()] = i;
+for (let i = 0; i < 26; i++) {
+  AQ_MAP[String.fromCharCode(65 + i)] = 10 + i;
+  AQ_MAP[String.fromCharCode(97 + i)] = 10 + i;
+}
+
+function aqValue(text) {
+  let total = 0;
+  for (let char of text.toUpperCase()) if (char in AQ_MAP) total += AQ_MAP[char];
+  return total;
+}
+
+function digitalRoot(n, base = 10) {
+  n = Math.abs(Math.floor(n));
+  if (n === 0) return 0;
+  return 1 + (n - 1) % (base - 1);
+}
+
+function deriveZone(val) {
+  return digitalRoot(val, currentBase) % cfg.zoneCount;
+}
+
+const TRIANGULAR_NUMBERS = new Set();
+for (let i = 1; i < 300; i++) TRIANGULAR_NUMBERS.add(i * (i + 1) / 2);
+function isTriangular(n) { return TRIANGULAR_NUMBERS.has(n); }
+
+// ─── ROTATIONAL / STROBOGRAMMATIC GATES ───
+// Seven-segment digits that read as valid digits when rotated 180°
+const STROBO_ROTATION = {
+  '0': '0', '1': '1', '2': '2', '5': '5', '6': '9', '8': '8', '9': '6'
+};
+
+function isStrobogrammatic(n) {
+  let s = Math.abs(Math.floor(n)).toString();
+  for (let c of s) if (!(c in STROBO_ROTATION)) return false;
+  let rotated = s.split('').reverse().map(c => STROBO_ROTATION[c]).join('');
+  return rotated === s;
+}
+
+function rotateNumber(n) {
+  let s = Math.abs(Math.floor(n)).toString();
+  for (let c of s) if (!(c in STROBO_ROTATION)) return null;
+  return parseInt(s.split('').reverse().map(c => STROBO_ROTATION[c]).join(''), 10);
+}
+
+// BEGHILOS extension: seven-segment calculator spelling
+const BEGHILOS = {
+  '0': '0', '1': '1', '2': 'S', '3': 'E', '4': 'h', '5': 'S',
+  '6': 'g', '7': 'L', '8': 'B', '9': 'G'
+};
+
+function beghilosSpell(n) {
+  let s = Math.abs(Math.floor(n)).toString();
+  let word = s.split('').reverse().map(c => BEGHILOS[c] || c).join('');
+  return word;
+}
+
+function hasStrobogrammaticDigits(n) {
+  let s = Math.abs(Math.floor(n)).toString();
+  for (let c of s) if (c in STROBO_ROTATION) return true;
+  return false;
+}
+
+// ─── T'AI HSUAN CHING — 81 TETRAGRAMS ───
+// Line types: 0=Heaven (young yang, unbroken), 1=Earth (young yin, broken once), 2=Man (elder yin, broken twice)
+const TETRAGRAM_LINES = ['heaven', 'earth', 'man'];
+const TETRAGRAMS = [];
+for (let i = 0; i < 81; i++) {
+  let lines = [];
+  let n = i;
+  for (let pos = 0; pos < 4; pos++) {
+    lines.push(n % 3);
+    n = Math.floor(n / 3);
+  }
+  TETRAGRAMS.push(lines); // lines[0]=bottom, lines[3]=top
+}
+
+let taiHsuanEnabled = false;
+let currentTetragrams = { upper: 0, lower: 0 };
+
+function generateTetragrams(s) {
+  let r1 = seededRandom(s * 7 + 49297);
+  let r2 = seededRandom(s * 13 + 9301);
+  return {
+    upper: Math.floor(r1 * 81),
+    lower: Math.floor(r2 * 81)
+  };
+}
+
+function tetragramToZone(tetraNum) {
+  return digitalRoot(tetraNum + 1, 10) % 10;
+}
+
+function renderTetragram(containerId, tetraNum, label) {
+  let container = document.getElementById(containerId);
+  let lines = TETRAGRAMS[tetraNum];
+  let html = `<div class="tetragram-title">${label} #${tetraNum}</div>`;
+  for (let i = 3; i >= 0; i--) {
+    let cls = TETRAGRAM_LINES[lines[i]];
+    html += `<div class="tetra-line ${cls}" style="width:48px;"></div>`;
+  }
+  container.innerHTML = html;
+}
+
+function updateTaiHsuan() {
+  if (!taiHsuanEnabled) return;
+  currentTetragrams = generateTetragrams(seed);
+  renderTetragram('tetragramUpper', currentTetragrams.upper, 'UPPER');
+  renderTetragram('tetragramLower', currentTetragrams.lower, 'LOWER');
+
+  let zU = tetragramToZone(currentTetragrams.upper);
+  let zL = tetragramToZone(currentTetragrams.lower);
+  let sum = zU + zL;
+  let isSyzygy = sum === 9;
+  let demon = isSyzygy ? BASE_CONFIG[10].demons[zU] : '—';
+  let reading = isSyzygy
+    ? `<b style="color:#ffcc44">SYZYGY ${zU}::${zL}</b> — ${demon} governs`
+    : `Cross-pairing ${zU}→${zL} (ungoverned)`;
+
+  let upperName = BASE_CONFIG[10].names[zU];
+  let lowerName = BASE_CONFIG[10].names[zL];
+  document.getElementById('taiHsuanReading').innerHTML = `
+    <span style="color:#ffcc4488">UPPER</span> Zone ${zU} (${upperName})<br>
+    <span style="color:#ffcc4488">LOWER</span> Zone ${zL} (${lowerName})<br>
+    ${reading}
+  `;
+}
+
+function toggleTaiHsuan() {
+  taiHsuanEnabled = document.getElementById('taiHsuanToggle').checked;
+  document.getElementById('taiHsuanPanel').classList.toggle('show', taiHsuanEnabled);
+  if (taiHsuanEnabled) updateTaiHsuan();
+}
+
+// Particle class (full from v4)
+class Particle {
+  constructor(x, y, z) {
+    this.x = x; this.y = y; this.vx = 0; this.vy = 0;
+    this.zone = z; this.life = 1.0; this.age = 0;
+    this.maxAge = 255 + seededRandom(seed + this.x * 65 + this.y) * 355;
+    this.size = 1.05 + seededRandom(seed + this.x + this.y * 32) * 1.65;
+    this.phase = seededRandom(seed + this.x * 7 + this.y * 13) * TWO_PI;
+    this.drag = 0.952 + seededRandom(seed + this.y * 26) * 0.038;
+    this.color = cfg.colors[z] || [100,100,100];
+  }
+
+  update(t) {
+    if (paused) return;
+    this.age++; this.life = Math.max(0, 1 - this.age / this.maxAge);
+    let fx = 0, fy = 0;
+    let s = 0.0026; let nx = this.x * s; let ny = this.y * s;
+    const isMem = currentBase === 16;
+
+    switch (this.zone) {
+      case 0: fx = noiseAt(nx, ny, t, 0.0011, 1) * 0.065; fy = noiseAt(nx+95, ny+95, t, 0.0011, 1) * 0.065; this.drag = 0.999; break;
+      case 1: { let d = distToCenter(this); fx = (this.x - width/2)/d * 0.30 * this.life; fy = (this.y - height/2)/d * 0.30 * this.life; this.drag = 0.958; break; }
+      case 2: {
+        let a1 = {x:width*0.24,y:height*0.24}, a2 = {x:width*0.76,y:height*0.76};
+        let d1 = dist(this.x,this.y,a1.x,a1.y), d2 = dist(this.x,this.y,a2.x,a2.y);
+        let dir = Math.sin(t*0.014 + this.phase) > 0 ? 1 : -1;
+        fx += (dir>0 ? (a1.x-this.x)/d1 : (a2.x-this.x)/d2) * 0.46;
+        fy += (dir>0 ? (a1.y-this.y)/d1 : (a2.y-this.y)/d2) * 0.46;
+        fx += noiseAt(nx,ny,t,0.0038,2)*0.55; fy += noiseAt(nx+45,ny+45,t,0.0038,2)*0.55; break;
+      }
+      case 3: {
+        let ang = noiseAt(nx,ny,t,0.0032,3) * TWO_PI * 2.05;
+        let spd = noiseAt(nx+150,ny+150,t,0.0023,2) * 2.0 + 0.52;
+        fx = Math.cos(ang)*spd; fy = Math.sin(ang)*spd;
+        let d = distToCenter(this); fx += (this.x-width/2)/d * 0.15; fy += (this.y-height/2)/d * 0.15; break;
+      }
+      case 4: {
+        let cx = width/2 + Math.cos(t*0.0075 + this.phase)*width*0.28;
+        let cy = height/2 + Math.sin(t*0.0055 + this.phase*0.55)*height*0.28;
+        fx = (cx-this.x)*0.0015; fy = (cy-this.y)*0.0015 + 0.15;
+        fx += noiseAt(nx,ny,t,0.0045,2)*0.24; break;
+      }
+      case 5: {
+        let d = distToCenter(this); let comp = 0.26 + Math.sin(t*0.007)*0.09;
+        fx = -(this.x-width/2)/d * comp; fy = -(this.y-height/2)/d * comp;
+        fx += noiseAt(nx,ny,t,0.0055,1)*0.14; fy += noiseAt(nx+220,ny+220,t,0.0055,1)*0.14;
+        if (Math.random()<0.025) { fx += (Math.random()-0.5)*0.6; fy += (Math.random()-0.5)*0.6; }
+        if (isMem && Math.random()<0.02) { this.x = width/2 + (Math.random()-0.5)*40; this.y = height/2 + (Math.random()-0.5)*40; }
+        break;
+      }
+      case 6: {
+        let ang = noiseAt(nx,ny,t,0.0036,3)*TWO_PI; fx = Math.cos(ang)*1.48; fy = Math.sin(ang)*1.48;
+        if (this.x<0) this.x=width; if (this.x>width) this.x=0;
+        if (this.y<0){this.y=height; this.phase+=PI;} if (this.y>height){this.y=0; this.phase+=PI;} break;
+      }
+      case 7: fy = -0.74 - noiseAt(nx,ny,t,0.0023,1)*0.22; fx = noiseAt(nx+75,ny,t,0.0032,2)*0.38; this.drag=0.97; break;
+      case 8: fx = Math.sin(t*0.002 + this.phase)*0.1; fy = Math.cos(t*0.0028 + this.phase*0.55)*0.1;
+              fx += noiseAt(nx,ny,t,0.0015,1)*0.1; fy += noiseAt(nx+38,ny+38,t,0.0015,1)*0.1; this.drag=0.988; break;
+      case 9: {
+        let d = distToCenter(this); let pull = 0.48 + (1 - d/(width*0.43))*1.5;
+        let ang = Math.atan2(height/2-this.y, width/2-this.x) + PI/2;
+        fx = Math.cos(ang)*pull*0.42 + (width/2-this.x)/d * pull*0.28;
+        fy = Math.sin(ang)*pull*0.42 + (height/2-this.y)/d * pull*0.28; break;
+      }
+      case 10: fx = Math.sin(t*0.0027 + this.phase)*0.16; fy = Math.cos(t*0.0022 + this.phase*0.65)*0.16;
+               fx += noiseAt(nx+280,ny,t,0.0018,2)*0.36; fy += noiseAt(nx,ny+280,t,0.0018,2)*0.36;
+               if (Math.random()<0.035) { this.x += (Math.random()-0.5)*2.5; this.y += (Math.random()-0.5)*2.5; } break;
+      case 11: {
+        let kx = (this.zone % 6) * (width/7) + width*0.08;
+        fx = (kx - this.x) * 0.002; fy = (height*0.48 - this.y) * 0.0016 + Math.sin(t*0.009 + this.phase)*0.28;
+        fx += noiseAt(nx,ny,t,0.0045,2)*0.45; break;
+      }
+      case 12: {
+        let ang12 = noiseAt(nx,ny,t,0.0027,4) * TWO_PI * 2.8;
+        fx = Math.cos(ang12) * 1.7; fy = Math.sin(ang12) * 1.7;
+        fx += (width/2 - this.x) * 0.0007; fy += (height/2 - this.y) * 0.0007; break;
+      }
+      case 13: {
+        let d13 = distToCenter(this); fx = -(this.x-width/2)/d13 * 0.32; fy = -(this.y-height/2)/d13 * 0.32;
+        fx += noiseAt(nx*1.4,ny*1.4,t,0.0009,3)*0.55; break;
+      }
+      case 14: fx = (width/2 - this.x) * 0.00135 + Math.sin(t*0.0035 + this.phase)*0.18;
+               fy = (height/2 - this.y) * 0.00135 + Math.cos(t*0.0027 + this.phase*0.75)*0.18;
+               this.drag = 0.982; break;
+      case 15: fx = noiseAt(nx*1.8,ny*1.8,t,0.0013,2)*1.1; fy = noiseAt(nx*1.8+90,ny*1.8+90,t,0.0013,2)*1.1;
+               if (this.life < 0.28) { this.x = random(width); this.y = random(height); } break;
+      default: fx = noiseAt(nx,ny,t,0.0027,2)*0.35; fy = noiseAt(nx+45,ny+45,t,0.0027,2)*0.35;
+    }
+
+    this.vx += fx; this.vy += fy; this.vx *= this.drag; this.vy *= this.drag;
+    this.x += this.vx; this.y += this.vy;
+
+    if (this.zone < 10 || currentBase === 10) {
+      if (this.x < -9) this.x = width+9; if (this.x > width+9) this.x = -9;
+      if (this.y < -9) this.y = height+9; if (this.y > height+9) this.y = -9;
+    }
+  }
+
+  draw() {
+    let alpha = this.life * 178;
+    let spd = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+    let c = this.color; let b = Math.min(1, spd*0.42 + 0.3);
+    stroke(c[0]*b, c[1]*b, c[2]*b, alpha);
+    strokeWeight(this.size * this.life * 0.82);
+    point(this.x, this.y);
+    
+    if ((this.zone === 1 || this.zone === 3 || this.zone === 9 || this.zone === 12) && spd > 1.0) {
+      stroke(c[0]*b*0.5, c[1]*b*0.5, c[2]*b*0.5, alpha*0.28);
+      strokeWeight(this.size * this.life * 0.32);
+      line(this.x - this.vx*0.5, this.y - this.vy*0.5, this.x, this.y);
+    }
+  }
+}
+
+function distToCenter(p) {
+  let dx = p.x - width/2, dy = p.y - height/2;
+  return Math.max(1, Math.sqrt(dx*dx + dy*dy));
+}
+
+function seededRandom(s) {
+  let x = Math.sin(s * 9301 + 49297) * 49297; return x - Math.floor(x);
+}
+
+function noiseAt(x, y, t, scale, oct) {
+  let val = 0, amp = 1, freq = scale;
+  for (let i = 0; i < oct; i++) {
+    val += amp * (noise(x*freq + fieldOffset, y*freq, t*0.01) - 0.5);
+    amp *= 0.48; freq *= 1.95;
+  }
+  return val;
+}
+
+function initParticles() {
+  particles = []; noiseSeed(seed); randomSeed(seed);
+  for (let i = 0; i < particleCount; i++) {
+    let x, y;
+    if (zone === 0) { x = random(width); y = random(height); }
+    else if (zone === 1 || zone === 5) { x = width/2 + random(-14,14); y = height/2 + random(-14,14); }
+    else if (zone === 7) { x = random(width); y = height - random(height*0.24); }
+    else if (zone === 9 || zone === 13) { let a = random(TWO_PI); let r = random(width*0.34); x = width/2 + Math.cos(a)*r; y = height/2 + Math.sin(a)*r; }
+    else if (currentBase === 16 && zone >= 10) { x = random(width*0.18, width*0.82); y = random(height*0.18, height*0.82); }
+    else { x = random(width); y = random(height); }
+    particles.push(new Particle(x, y, zone));
+  }
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  background(5,5,5);
+  cfg = BASE_CONFIG[currentBase];
+  initParticles();
+  updateInfo();
+  createZoneSelector();
+  drawSyzygyViz();
+  updateBaseInfo();
+  updateTaiHsuan();
+  if (currentBase === 10) buildMatrix();
+}
+
+function draw() {
+  if (paused) return;
+  frameCount_++;
+  let fade = (zone === 0) ? 4 : (zone === 8 || zone === 15) ? 2.5 : 8;
+  noStroke(); fill(5,5,5,fade); rect(0,0,width,height);
+  fieldOffset += 0.00032; let t = frameCount_ * 0.014;
+
+  for (let p of particles) {
+    p.update(t); p.draw();
+    if (p.life <= 0) {
+      let nx = random(width), ny = random(height);
+      if (zone === 1 || zone === 5) { nx = width/2 + random(-7,7); ny = height/2 + random(-7,7); }
+      else if (zone === 7) ny = height - random(14);
+      else if (zone === 9 || zone === 13) { let a=random(TWO_PI); nx=width/2+Math.cos(a)*random(width*0.28); ny=height/2+Math.sin(a)*random(width*0.28); }
+      p.x = nx; p.y = ny; p.vx = p.vy = 0; p.life = 1; p.age = 0; p.maxAge = 255 + random()*355; p.phase = random(TWO_PI);
+    }
+  }
+
+  if (zone === 5 || zone === 9 || zone === 14) {
+    let gs = (zone === 9 || zone === 14) ? 34 + Math.sin(t)*7 : 24;
+    let ga = 15 + Math.sin(t*1.6)*7; let gc = cfg.colors[zone];
+    noStroke();
+    for (let r = gs; r > 0; r -= 1.5) {
+      fill(gc[0], gc[1], gc[2], ga * (1 - r/gs));
+      ellipse(width/2, height/2, r*2, r*2);
+    }
+  }
+
+  if (zone === 0 && frameCount_ % 75 === 0) {
+    fill(cfg.colors[0][0], cfg.colors[0][1], cfg.colors[0][2], 22);
+    ellipse(random(width), random(height), 2, 2);
+  }
+
+  if (frameCount_ % 2 === 0) drawSyzygyViz();
+}
+
+function updateInfo() {
+  let dr = digitalRoot(seed, currentBase);
+  let partner = cfg.syzygyPartner(zone);
+  let curr = cfg.currentName(zone);
+  let aq = aqValue(document.getElementById('seedInput').value || seed.toString());
+  let gate = isTriangular(seed) || isTriangular(aq);
+  let gateStr = gate ? `<span style="color:#ff3366">OPEN — Gt-${zone*currentBase + partner}</span>` : `<span style="color:#00F5FF44">closed</span>`;
+
+  let rotHtml = '';
+  if (hasStrobogrammaticDigits(aq)) {
+    let rotated = rotateNumber(aq);
+    let strob = isStrobogrammatic(aq);
+    let beg = beghilosSpell(aq);
+    let rotColor = strob ? '#ff3366' : '#00F5FF88';
+    let rotLabel = strob ? 'STROBO GATE' : 'ROTATIONAL';
+    rotHtml = `<br><span style="color:${rotColor}">${rotLabel}</span> ${aq}↔${rotated !== null ? rotated : '—'} <span style="color:#00F5FF55">BEGHILOS: "${beg}"</span>`;
+    if (strob) rotHtml += ` <span style="color:#ff3366">★ SELF-MIRROR</span>`;
+  }
+
+  let html = `
+    <span style="color:#00F5FF88">SEED</span> ${seed} <span style="color:#00F5FF55">(${currentBase})</span><br>
+    <span style="color:#00F5FF88">AQ</span> ${aq} → <span style="color:#fff">ZONE ${zone}</span> <span style="color:#00F5FF66">(${cfg.names[zone]})</span><br>
+    <span style="color:#00F5FF88">REGION</span> ${cfg.regions[zone].toUpperCase()}<br>
+    <span style="color:#00F5FF88">SYZYGY</span> ${zone}::${partner} <span style="color:#00F5FF66">(${cfg.demons[zone]})</span><br>
+    <span style="color:#00F5FF88">CURRENT</span> ${curr} <span style="color:#00F5FF66">(${cfg.demons[partner] || '—'})</span><br>
+    <span style="color:#00F5FF88">GATE</span> ${gateStr}${rotHtml}<br>
+    <span style="color:#00F5FF88">PHILOSOPHY</span> <span style="font-size:9.5px; opacity:0.82">${cfg.descs[zone]}</span>
+  `;
+  document.getElementById('info').innerHTML = html;
+}
+
+function drawSyzygyViz() {
+  let c = document.getElementById('syzygyViz');
+  let ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 120, 120);
+  let cx = 60, cy = 60, r = currentBase === 16 ? 44 : 48;
+  let partner = cfg.syzygyPartner(zone);
+
+  ctx.strokeStyle = '#00F5FF0D';
+  ctx.lineWidth = 0.9;
+  if (currentBase === 10) {
+    for (let i = 0; i < 5; i++) {
+      let a1 = (i * 72 - 90) * Math.PI / 180;
+      let a2 = ((i+2) * 72 - 90) * Math.PI / 180;
+      ctx.moveTo(cx + Math.cos(a1)*r, cy + Math.sin(a1)*r);
+      ctx.lineTo(cx + Math.cos(a2)*r, cy + Math.sin(a2)*r);
+    }
+  } else {
+    for (let i = 0; i < 6; i++) {
+      let a = (i * 60) * Math.PI / 180;
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a)*r*0.66, cy + Math.sin(a)*r*0.66);
+    }
+  }
+  ctx.stroke();
+
+  // Decadence chords (enhanced)
+  if (currentBase === 10) {
+    ctx.strokeStyle = '#ffcc4488';
+    ctx.lineWidth = 1.3;
+    ctx.setLineDash([4, 2.5]);
+    const pairs = [[1,9],[2,8],[3,7],[4,6]];
+    for (let [z1, z2] of pairs) {
+      let ang1 = ((z1 % 5) * 72 + (z1 > 4 ? 36 : 0) - 90) * Math.PI / 180;
+      let ang2 = ((z2 % 5) * 72 + (z2 > 4 ? 36 : 0) - 90) * Math.PI / 180;
+      let x1 = cx + Math.cos(ang1) * (z1 > 4 ? r*0.47 : r);
+      let y1 = cy + Math.sin(ang1) * (z1 > 4 ? r*0.47 : r);
+      let x2 = cx + Math.cos(ang2) * (z2 > 4 ? r*0.47 : r);
+      let y2 = cy + Math.sin(ang2) * (z2 > 4 ? r*0.47 : r);
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    if (zone === 5 || partner === 5) {
+      ctx.strokeStyle = '#ffcc44cc';
+      ctx.lineWidth = 1.7;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 5.2 + Math.sin(frameCount_ * 0.09) * 1.6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  let angZ = currentBase === 10 
+    ? ((zone % 5) * 72 + (zone > 4 ? 36 : 0) - 90) * Math.PI / 180
+    : (zone * 22.5 - 90) * Math.PI / 180;
+  let xz = cx + Math.cos(angZ) * (zone > (currentBase/2-1) ? r*0.48 : r);
+  let yz = cy + Math.sin(angZ) * (zone > (currentBase/2-1) ? r*0.48 : r);
+
+  let angP = currentBase === 10
+    ? ((partner % 5) * 72 + (partner > 4 ? 36 : 0) - 90) * Math.PI / 180
+    : (partner * 22.5 - 90) * Math.PI / 180;
+  let xp = cx + Math.cos(angP) * (partner > (currentBase/2-1) ? r*0.48 : r);
+  let yp = cy + Math.sin(angP) * (partner > (currentBase/2-1) ? r*0.48 : r);
+
+  ctx.strokeStyle = '#00F5FF33';
+  ctx.lineWidth = 1.1;
+  ctx.beginPath(); ctx.moveTo(xz, yz); ctx.lineTo(xp, yp); ctx.stroke();
+
+  let flowT = (frameCount_ % 48) / 48;
+  for (let i = 0; i < 3; i++) {
+    let f = (flowT + i * 0.28) % 1;
+    let fx = xz + (xp - xz) * f;
+    let fy = yz + (yp - yz) * f;
+    ctx.fillStyle = i === 0 ? '#00F5FF' : '#00F5FF66';
+    ctx.beginPath(); ctx.arc(fx, fy, i===0 ? 1.8 : 1.1, 0, Math.PI*2); ctx.fill();
+  }
+
+  ctx.fillStyle = `rgb(${cfg.colors[zone][0]},${cfg.colors[zone][1]},${cfg.colors[zone][2]})`;
+  ctx.beginPath(); ctx.arc(xz, yz, 4.6, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = `rgb(${cfg.colors[partner][0]},${cfg.colors[partner][1]},${cfg.colors[partner][2]})`;
+  ctx.beginPath(); ctx.arc(xp, yp, 3.9, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = '#00F5FF66';
+  ctx.font = '7px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText(zone.toString(16).toUpperCase(), xz, yz + 11);
+  ctx.fillText(partner.toString(16).toUpperCase(), xp, yp + 11);
+}
+
+function buildMatrix() {
+  let grid = document.getElementById('matrixGrid');
+  grid.innerHTML = '';
+  document.getElementById('matrixPanel').classList.add('show');
+  document.getElementById('contextBox').classList.add('show');
+
+  for (let row = 0; row < 10; row++) {
+    for (let col = 0; col < 10; col++) {
+      let cell = document.createElement('div');
+      cell.className = 'matrixCell';
+      cell.dataset.row = row; cell.dataset.col = col;
+
+      if (col < row) { cell.style.visibility = 'hidden'; continue; }
+      if (col === row) { cell.innerText = row; cell.style.background = '#222'; cell.style.color = '#555'; }
+      else {
+        let sum = row + col;
+        let isSyzygy = (sum === 9);
+        let isDecadence = (sum === 10);
+        let isCurrent = (row === zone || col === zone);
+        let isGate = isTriangular(row * 10 + col) || isTriangular(col * 10 + row);
+        let isSelf5 = (row === 5 && col === 5);
+
+        if (isSyzygy) cell.classList.add('syzygy');
+        if (isDecadence) cell.classList.add('decadence');
+        if (isCurrent) cell.classList.add('current');
+        if (isGate) cell.classList.add('gate');
+        if (isSelf5) cell.classList.add('self');
+
+        cell.innerText = row + '' + col;
+        cell.title = `${row}::${col} sum=${sum} ${isSyzygy ? 'SYZYGY' : isDecadence ? 'DECADENCE' : isGate ? 'GATE' : ''}`;
+
+        cell.onmouseover = () => {
+          showQuasiphonic(row, event.clientX, event.clientY);
+        };
+        cell.onmouseout = () => {
+          document.getElementById('quasiphonicLabel').style.display = 'none';
+        };
+
+        cell.onclick = () => {
+          let target = Math.max(row, col);
+          if (target < cfg.zoneCount) {
+            zone = target;
+            background(5,5,5);
+            initParticles();
+            updateInfo();
+            createZoneSelector();
+            drawSyzygyViz();
+            buildMatrix();
+          }
+        };
+      }
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function showQuasiphonic(z, clientX, clientY) {
+  const label = document.getElementById('quasiphonicLabel');
+  const q = QUASIPHONIC[z];
+  if (!q) return;
+  label.innerHTML = `<b>${q.sound}</b> — ${q.desc}`;
+  label.style.left = `${clientX + 12}px`;
+  label.style.top = `${clientY - 18}px`;
+  label.style.display = 'block';
+}
+
+function createZoneSelector() {
+  let container = document.getElementById('zoneSelector');
+  container.innerHTML = '';
+  for (let z = 0; z < cfg.zoneCount; z++) {
+    let btn = document.createElement('div');
+    btn.className = 'zoneBtn';
+    btn.style.background = `rgb(${cfg.colors[z][0]},${cfg.colors[z][1]},${cfg.colors[z][2]})`;
+    btn.title = `${z.toString(16).toUpperCase()} — ${cfg.names[z]}`;
+    if (z === zone) btn.classList.add('active');
+    btn.onclick = () => {
+      zone = z;
+      background(5,5,5);
+      initParticles();
+      updateInfo();
+      createZoneSelector();
+      drawSyzygyViz();
+      if (currentBase === 10) buildMatrix();
+    };
+    container.appendChild(btn);
+  }
+}
+
+function updateBaseInfo() {
+  let el = document.getElementById('baseInfo');
+  if (currentBase === 10) {
+    el.innerHTML = `<b>DECIMAL</b> • C(10,2)=45<br>5 syzygies (cyan) • 5 decadence chords (gold)<br>Zone 5 self-decadence 5+5=10 highlighted`;
+  } else {
+    el.innerHTML = `<b>MEMORY MAP (Base-16)</b><br>16 zones • 6-cycle kernel (1-2-4-8-7-5)<br>8 new memory zones (A–F)`;
+    document.getElementById('matrixPanel').classList.remove('show');
+    document.getElementById('contextBox').classList.remove('show');
+  }
+}
+
+function switchBase(newBase) {
+  if (newBase === currentBase) return;
+  
+  
+  currentBase = newBase;
+  cfg = BASE_CONFIG[newBase];
+  zone = deriveZone(seed);
+  
+  document.querySelectorAll('.base-btn').forEach(b => b.classList.remove('active'));
+  setTimeout(() => {
+    document.querySelectorAll('.base-btn').forEach((b, i) => {
+      b.classList.toggle('active', (i === 0 && newBase === 10) || (i === 1 && newBase === 16));
+    });
+  }, 5);
+
+  background(5,5,5);
+  initParticles();
+  updateInfo();
+  createZoneSelector();
+  drawSyzygyViz();
+  updateBaseInfo();
+  updateTaiHsuan();
+  
+  if (newBase === 10) buildMatrix();
+  else {
+    document.getElementById('matrixPanel').classList.remove('show');
+    document.getElementById('contextBox').classList.remove('show');
+  }
+}
+
+function updateDensity() {
+  let val = parseInt(document.getElementById('densitySlider').value);
+  document.getElementById('densityVal').innerText = val;
+  if (val !== particleCount) {
+    particleCount = val;
+    initParticles();
+  }
+}
+
+function newOracle() {
+  let input = document.getElementById('seedInput').value.trim() || '192855';
+  seed = isNaN(input) ? aqValue(input) : parseInt(input);
+  zone = deriveZone(seed);
+  background(5,5,5);
+  initParticles();
+  updateInfo();
+  createZoneSelector();
+  drawSyzygyViz();
+  updateTaiHsuan();
+  if (currentBase === 10) buildMatrix();
+}
+
+function newRandom() {
+  seed = Math.floor(Math.random() * 9999999);
+  document.getElementById('seedInput').value = seed;
+  zone = deriveZone(seed);
+  background(5,5,5);
+  initParticles();
+  updateInfo();
+  createZoneSelector();
+  drawSyzygyViz();
+  updateTaiHsuan();
+  if (currentBase === 10) buildMatrix();
+}
+
+function togglePause() {
+  paused = !paused;
+  document.getElementById('pauseBtn').innerText = paused ? 'RESUME' : 'PAUSE';
+  if (!paused) loop(); else noLoop();
+}
+
+function highlightTriangularGates() {
+  const cells = document.querySelectorAll('.matrixCell');
+  cells.forEach(cell => {
+    const row = parseInt(cell.dataset.row);
+    const col = parseInt(cell.dataset.col);
+    if (isTriangular(row * 10 + col) || isTriangular(col * 10 + row)) {
+      cell.style.boxShadow = '0 0 6px #ff3366';
+      cell.style.borderColor = '#ff3366';
+      setTimeout(() => {
+        cell.style.boxShadow = '';
+        cell.style.borderColor = cell.classList.contains('gate') ? '#ff3366' : '#00F5FF11';
+      }, 1800);
+    }
+  });
+  const ctx = document.getElementById('contextBox');
+  ctx.innerHTML = `<b>Triangular Gates (from triangular-numbers.md)</b><br>Gt-36 = T₈ = 36 → Zone-9 Plex plunge<br>Gt-45 = T₉ = 45 → Pandemonium Gate (45 demons)<br>T₃₆ = 666 → Zone-9 terminal attractor`;
+  ctx.style.display = 'block';
+  setTimeout(() => { ctx.style.display = 'none'; }, 4200);
+}
+
+
+
+function animateTriangularSyzygy() {
+  // Clear any existing overlay
+  let overlay = document.getElementById('triangleOverlay');
+  if (!overlay) {
+    const panel = document.getElementById('matrixPanel');
+    overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    overlay.id = 'triangleOverlay';
+    overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;';
+    panel.appendChild(overlay);
+  } else {
+    overlay.innerHTML = '';
+  }
+
+  const z = zone; // current zone
+  const p = 9 - z; // syzygy partner
+  const c = Math.abs(z - p); // current
+  const distinct = [...new Set([z, p, c])];
+  if (distinct.length < 3) {
+    const ctx = document.getElementById('contextBox');
+    ctx.innerHTML = `<b>Triangular Syzygy</b><br>Degenerate for zone ${z}: partner ${p}, current ${c}.`;
+    ctx.style.display = 'block';
+    setTimeout(() => ctx.style.display = 'none', 3000);
+    return;
+  }
+
+  const panelRect = document.getElementById('matrixPanel').getBoundingClientRect();
+  const getCenter = (zoneNum) => {
+    const cell = document.querySelector(`.matrixCell[data-row='${zoneNum}'][data-col='${zoneNum}']`);
+    if (!cell) return null;
+    const r = cell.getBoundingClientRect();
+    return {
+      x: (r.left + r.width/2) - panelRect.left,
+      y: (r.top + r.height/2) - panelRect.top
+    };
+  };
+  const pts = distinct.map(getCenter);
+  if (pts.some(p => p === null)) return;
+
+  // Draw filled triangle (translucent)
+  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  poly.setAttribute('points', pts.map(p => `${p.x},${p.y}`).join(' '));
+  poly.setAttribute('fill', 'rgba(255, 51, 102, 0.2)');
+  poly.setAttribute('stroke', '#ff3366');
+  poly.setAttribute('stroke-width', '1');
+  overlay.appendChild(poly);
+
+  // Animate particles along edges
+  const edges = [[0,1],[1,2],[2,0]];
+  const radius = 3;
+  edges.forEach(edge => {
+    const start = pts[edge[0]];
+    const end = pts[edge[1]];
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('r', radius);
+    circle.setAttribute('fill', '#ff3366');
+    overlay.appendChild(circle);
+    let progress = 0;
+    const animate = () => {
+      progress += 0.02;
+      if (progress > 1) progress = 0;
+      const x = start.x + (end.x - start.x) * progress;
+      const y = start.y + (end.y - start.y) * progress;
+      circle.setAttribute('cx', x);
+      circle.setAttribute('cy', y);
+      requestAnimationFrame(animate);
+    };
+    animate();
+  });
+
+  const ctx = document.getElementById('contextBox');
+  ctx.innerHTML = `<b>Triangular Syzygy</b><br>Zones: ${distinct.join(' :: ')}<br>Current: ${c} (${z}::${p})`;
+  ctx.style.display = 'block';
+}
+
+
+
+function updateAQInfo() {
+  let text = document.getElementById('aqInput').value || '';
+  let aq = aqValue(text);
+  let dr = digitalRoot(aq, currentBase);
+  let z = dr % cfg.zoneCount;
+  let partner = cfg.syzygyPartner(z);
+  let curr = cfg.currentName(z);
+  let gate = isTriangular(aq);
+  let gateStr = gate ? `<span style="color:#ff3366">OPEN — Gt-${aq}</span>` : `<span style="color:#00F5FF44">closed</span>`;
+  
+  let rotHtml = '';
+  if (hasStrobogrammaticDigits(aq)) {
+    let rotated = rotateNumber(aq);
+    let strob = isStrobogrammatic(aq);
+    let beg = beghilosSpell(aq);
+    let rotColor = strob ? '#ff3366' : '#00F5FF88';
+    let rotLabel = strob ? 'STROBO GATE' : 'ROTATIONAL';
+    rotHtml = `<br><span style="color:${rotColor}">${rotLabel}</span> ${aq}↔${rotated !== null ? rotated : '—'} <span style="color:#00F5FF55">BEGHILOS: "${beg}"</span>`;
+    if (strob) rotHtml += ` <span style="color:#ff3366">★ SELF-MIRROR</span>`;
+  }
+
+  let synxHtml = '';
+  if (synxEnabled && text.length > 0) {
+    let sx = synxValue(text);
+    let sxDr = synxDigitalRoot(sx);
+    let sxZ = sxDr % cfg.zoneCount;
+    let sxPartner = cfg.syzygyPartner(sxZ);
+    let sxCurr = cfg.currentName(sxZ);
+    synxHtml = `<br><span style="color:#00CCFF88">SYNX</span> <span style="color:#00CCFF">${sx}</span> → <span style="color:#fff">ZONE ${sxZ}</span> <span style="color:#00CCFF66">(${cfg.names[sxZ]})</span><br><span style="color:#00CCFF88">SYZYGY</span> ${sxZ}::${sxPartner} <span style="color:#00CCFF88">CURRENT</span> ${sxCurr}`;
+  }
+
+  let ctx = document.getElementById('contextBox');
+  if (text.length > 0) {
+    ctx.innerHTML = `
+      <b style="color:#ffcc44">AQ TEXT</b> "${text}"<br>
+      <span style="color:#00F5FF88">AQ</span> ${aq} → <span style="color:#fff">ZONE ${z}</span> <span style="color:#00F5FF66">(${cfg.names[z]})</span><br>
+      <span style="color:#00F5FF88">SYZYGY</span> ${z}::${partner} <span style="color:#00F5FF88">CURRENT</span> ${curr}<br>
+      <span style="color:#00F5FF88">GATE</span> ${gateStr}${rotHtml}<br>
+      <span style="color:#00F5FF55">${cfg.descs[z]}</span>
+      ${synxHtml}
+    `;
+    ctx.style.display = 'block';
+  } else {
+    ctx.style.display = 'none';
+  }
+}
+
+function setZoneFromAQ() {
+  let text = document.getElementById('aqInput').value || '';
+  if (!text) return;
+  let val = synxEnabled ? synxValue(text) : aqValue(text);
+  let dr = synxEnabled ? synxDigitalRoot(val) : digitalRoot(val, currentBase);
+  let z = dr % cfg.zoneCount;
+  zone = z;
+  seed = val;
+  document.getElementById('seedInput').value = val;
+  background(5,5,5); particles = []; initParticles();
+  updateInfo(); createZoneSelector(); drawSyzygyViz(); updateTaiHsuan(); buildMatrix();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  background(5,5,5);
+  if (!paused) initParticles();
+}
+
+function keyPressed() {
+  // Don't intercept keys when typing in input fields
+  let active = document.activeElement;
+  if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+
+  if (key === 'r' || key === 'R') newRandom();
+  if (key === ' ') { togglePause(); return false; }
+  if (key === 'g' || key === 'G') {
+    for (let i = 0; i < 50; i++) {
+      let p = new Particle(random(width), random(height), zone);
+      p.maxAge = 32; particles.push(p);
+    }
+  }
+  if (key === 'b' || key === 'B') {
+    let next = currentBase === 10 ? 16 : 10;
+    switchBase(next);
+  }
+  if (key === 'm' || key === 'M') {
+    let p = document.getElementById('matrixPanel');
+    if (currentBase === 10) p.classList.toggle('show');
+  }
+}
+</script>
+</body>
+</html>

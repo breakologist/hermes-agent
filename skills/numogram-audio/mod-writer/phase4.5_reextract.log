@@ -1,0 +1,70 @@
+Artist coverage in SSD map: 50 artists, 12145 total files
+Selected 40 tracks for evaluation
+
+--- MIR extraction + flatten ---
+  ✓ 1989 - A Bag Of Cats / 05. Mesne (Kruis).mp3
+  ✓ 1996 - Boys for Pele / B 03 - Caught a Lite Sneeze.flac
+  ✓ Drexciya - Journey Of The Deep Sea Dweller III - 2013 / 03. Drexciya - Aquabahn.mp3
+/home/etym/.hermes/skills/numogram-audio/mod-writer/mod_writer/mir_profiler.py:112: UserWarning: PySoundFile failed. Trying audioread instead.
+  y, sr = librosa.load(path, sr=None, mono=True, duration=MAX_ANALYSIS_SECONDS)
+/usr/lib/python3.14/site-packages/librosa/core/audio.py:184: FutureWarning: librosa.core.audio.__audioread_load
+	Deprecated as of librosa version 0.10.0.
+	It will be removed in librosa version 1.0.
+  y, sr_native = __audioread_load(path, offset, duration, dtype)
+  ✓ 2006 - EP C B EP (CD 2 - EP C) / 05 TRAS 2.m4a
+  ✓ 2014 - Dream Sequins® / 14. Choose Your Own Adventure.mp3
+  ✓ Deathsmiles Manabu Namiki Select / 06 Rebellion of the Lake Village - Stage C-1.flac
+  ✓ 2008 Punkgasm / 11 - Dirty Looks.flac
+  ✓ New Order  –  Substance (1987) [FLAC] [24.96] / D2 - Bizarre Love Triangle.flac
+  ✓ Autechre Productions 1992-2016 / 1996 - Gescom - Keynell (AE remix B).flac
+  ✓ Eliane Radigue - Transamorem - Transmortem / 01 - Transamorem - Transmortem.flac
+  ✓ 2002 - Fyuti / 02. Shoob,e.flac
+  ✓ [Mirror & Gate Vol. IV] Aniello & John Sandia - Mirror & Gate Vol. IV (Album) WEB [2013] 320Kbps / 05 04.mp3
+  ✓ Alva Noto / RA.276 Alva Noto.mp3
+  ✓ 2006 - Harmony in Ultraviolet / 02 Stags, Aircraft, Kings and Secretaries.flac
+  ✓ 2012.08.22 - Persona 4 The Ultimate in Mayonaka Arena Original Soundtrack [V0] / 14. Missions For The Brilliant Executor.mp3
+  ✓ 2000 - Gold & Green / 08 - unu.flac
+  ✓ 2005 - Music For A Spaghetti Western / 02. Scene 2.mp3
+  ✓ 2003 - Thunder Perfect Mind (remastered) / 13. Thunder Perfect Mind I.flac
+  ✓ Earth - 2011 - Angels Of Darkness, Demons Of Light I [LORD128] / Earth - Angels Of Darkness, Demons Of Light I.flac
+  ✓ Bjork - (CDS) - 1999 - All Is Full of Love (US CD) [FLAC (tracks+.cue)] / (01) Bjork - (Video Version).flac
+  ✓ 2014 - 私を鬼ヶ島に連れてって / 04 - Tchaikovsky.flac
+  ✓ Computer World / 05. Computer Love.flac
+  ✓ 1981 - Soviet Sex & Z'EV - Untitled (Flexi, 7'') / 01 - Untitled.mp3
+  ✓ Boris / SUNN O))) & BORIS - Altar - 03 The Sinking Belle (Blue Sheep).flac
+  ✓ Jim O'Rourke - 2015 - Simple Songs (FLAC) / 08 Jim O'Rourke - All Your Love.flac
+  ✓ Basic Channel - Enforcement (BC-01) / 01. Cyrus - Enforcement.flac
+  ✓ 2009 - Tsar Bomba EP / B1 Th'aria.mp3
+  ✓ Alice Bailey & Djwhal Khul - Letters On Occult Meditation / Tape 1.mp3
+  ✓ 2000 - Musick to Play In the Dark Vol. 2 / 05. An Emergency.mp3
+  ✓ 1967. Bob Dylan - John Wesley Harding (CBS CBSCD 63252, Japan-Europe) / John Wesley Harding.flac
+  ✓ CD 1 (The Original Album, Remastered) / 08 - The Fat Shadow (Pointy Head Mix).flac
+  ✓ 1995 - Zoviet France & Jim O'Rourke & The Hafler Trio - Unentitled / 02. Tacere Fas.mp3
+  ✓ CD2 (w. Merzbow) / 02. O))) Bow 4.mp3
+  ✓ 1976 - Scenery / 01 It Could Happen To You.flac
+  ✓ [OPAL044]  D.A.R.F.D.H.S. - Forintelsen & Doden (EP) [2014] 320Kbps / 05 KADAVERDICIPLIN.mp3
+  ✓ Arvo Part - Te Deum / 08 - Berliner Messe (1990-1992) - Veni Sancte Spiritus.flac
+  ✓ 2010 - Stained Glass (EP) / 01. Stained Glass.mp3
+[src/libmpg123/id3.c:process_comment():591] error: No comment text / valid description?
+  ✓ Elizabeth Fraser - 2003 With Other Artists (Ex. Cocteau Twins) / 20-Hypo-Allergenic-Spooky.mp3
+  ✓ 2014 - Pink Narcissus / 04 - Vanity.flac
+  ✓ 2012 - Machinic Phylum / 03 - clinamen.mp3
+
+Feature matrix: (40, 29)
+
+Predicted zone distribution:
+  Zone 1: 1 tracks
+  Zone 2: 0 tracks
+  Zone 3: 0 tracks
+  Zone 4: 0 tracks
+  Zone 5: 0 tracks
+  Zone 6: 0 tracks
+  Zone 7: 39 tracks
+  Zone 8: 0 tracks
+  Zone 9: 0 tracks
+
+Synthetic baseline RF test accuracy: 98.33%
+Note: real tracks lack ground-truth labels; predictions show model bias.
+
+Workspace: /home/etym/.hermes/skills/numogram-audio/mod-writer/mod_writer/classifier/artifacts/real_audio_run
+Done.

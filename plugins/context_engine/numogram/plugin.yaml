@@ -1,0 +1,8 @@
+name: numogram-context-engine
+description: "Numogram-aware context engine — injects AQ calculation, zone lookup, and syzygy tools. Adjustable focus lens from transparent (off) to aggressive (hard)."
+version: 1.0.0
+author: Hermes Agent
+metadata:
+  hermes:
+    tags: [numogram, context, aq, zones, syzygy]
+    category: context_engine
