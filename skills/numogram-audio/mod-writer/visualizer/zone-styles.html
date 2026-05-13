@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<!--
+  Zone-Coded Emergence — p5.js generative art
+  Philosophy: see zone-style-manifesto.md in the same directory
+  Built from algorithmic-art/templates/viewer.html — structure preserved
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zone-Coded Emergence — Numogram Generative Art</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand — KEEP AS IS */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family:'Poppins',sans-serif;
+            background:linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height:100vh; color:var(--anthropic-dark);
+        }
+        .container { display:flex; min-height:100vh; padding:20px; gap:20px; }
+        .sidebar {
+            width:320px; flex-shrink:0;
+            background:rgba(255,255,255,0.95); backdrop-filter:blur(10px);
+            padding:24px; border-radius:12px;
+            box-shadow:0 10px 30px rgba(20,20,19,0.1);
+            overflow-y:auto; overflow-x:hidden;
+        }
+        .sidebar h1 {
+            font-family:'Lora',serif; font-size:24px; font-weight:500;
+            color:var(--anthropic-dark); margin-bottom:8px;
+        }
+        .sidebar .subtitle {
+            color:var(--anthropic-mid-gray); font-size:14px;
+            margin-bottom:32px; line-height:1.4;
+        }
+        .control-section { margin-bottom:32px; }
+        .control-section h3 {
+            font-size:16px; font-weight:600; color:var(--anthropic-dark);
+            margin-bottom:16px; display:flex; align-items:center; gap:8px;
+        }
+        .control-section h3::before { content:'•'; color:var(--anthropic-orange); font-weight:bold; }
+        .seed-input {
+            width:100%; background:var(--anthropic-light); padding:12px;
+            border-radius:8px; font-family:'Courier New',monospace; font-size:14px;
+            margin-bottom:12px; border:1px solid var(--anthropic-light-gray);
+            text-align:center;
+        }
+        .seed-input:focus { outline:none; border-color:var(--anthropic-orange);
+            box-shadow:0 0 0 2px rgba(217,119,87,0.1); background:white; }
+        .seed-controls { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+        .regen-button { margin-bottom:0; }
+        .control-group { margin-bottom:20px; }
+        .control-group label {
+            display:block; font-size:14px; font-weight:500; color:var(--anthropic-dark);
+            margin-bottom:8px;
+        }
+        .slider-container { display:flex; align-items:center; gap:12px; }
+        .slider-container input[type="range"] {
+            flex:1; height:4px; background:var(--anthropic-light-gray);
+            border-radius:2px; outline:none; -webkit-appearance:none;
+        }
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance:none; width:16px; height:16px;
+            background:var(--anthropic-orange); border-radius:50%;
+            cursor:pointer; transition:all 0.2s ease;
+        }
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.1); background:#c86641; }
+        .value-display {
+            font-family:'Courier New',monospace; font-size:12px;
+            color:var(--anthropic-mid-gray); min-width:60px; text-align:right;
+        }
+        .button {
+            background:var(--anthropic-orange); color:white; border:none;
+            padding:10px 16px; border-radius:6px; font-size:14px; font-weight:500;
+            cursor:pointer; transition:all 0.2s ease; width:100%;
+        }
+        .button:hover { background:#c86641; transform:translateY(-1px); }
+        .button:active { transform:translateY(0); }
+        .button.secondary { background:var(--anthropic-blue); }
+        .button.secondary:hover { background:#5a8bb8; }
+        .button.tertiary { background:var(--anthropic-green); }
+        .button.tertiary:hover { background:#6b7b52; }
+        .button-row { display:flex; gap:8px; }
+        .button-row .button { flex:1; }
+        .canvas-area {
+            flex:1; display:flex; align-items:center; justify-content:center; min-width:0;
+        }
+        #canvas-container {
+            width:100%; max-width:1000px; border-radius:12px; overflow:hidden;
+            box-shadow:0 20px 40px rgba(20,20,19,0.1); background:#0a0a0a;
+        }
+        #canvas-container canvas { display:block; width:100% !important; height:auto !important; }
+        .loading {
+            display:flex; align-items:center; justify-content:center;
+            font-size:18px; color:var(--anthropic-mid-gray);
+        }
+        @media (max-width:600px) {
+            .container { flex-direction:column; }
+            .sidebar { width:100%; }
+            .canvas-area { padding:20px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Sidebar (Anthropic styling — keep intact) -->
+    <div class="sidebar">
+        <!-- Headers — customised for this artwork -->
+        <h1>Zone-Coded Emergence</h1>
+        <div class="subtitle">
+            Numogram generative art where each zone (0–9) is a distinct motion grammar
+            and colour field. The flow is seeded by AQ strings; the current zone modulates
+            the demonic frequency of the particle field.
+        </div>
+
+        <!-- Seed Section — ALWAYS KEEP -->
+        <div class="control-section">
+            <h3>Seed</h3>
+            <input type="number" id="seed-input" class="seed-input" value="12345" onchange="updateSeed()">
+            <div class="seed-controls">
+                <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                <button class="button secondary" onclick="nextSeed()">Next →</button>
+            </div>
+            <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+        </div>
+
+        <!-- Parameters Section — customised for Zone-Coded art -->
+        <div class="control-section">
+            <h3>Parameters</h3>
+
+            <!-- Active Zone -->
+            <div class="control-group">
+                <label>Active Zone (0–9)</label>
+                <div class="slider-container">
+                    <input type="range" id="zone" min="0" max="9" step="1" value="5" oninput="updateParam('zone', parseInt(this.value))">
+                    <span class="value-display" id="zone-value">5 — Ruler</span>
+                </div>
+            </div>
+
+            <!-- Particle Count (base; zone overrides scale it) -->
+            <div class="control-group">
+                <label>Base Particle Count</label>
+                <div class="slider-container">
+                    <input type="range" id="particleCount" min="1000" max="20000" step="500" value="5000" oninput="updateParam('particleCount', parseInt(this.value))">
+                    <span class="value-display" id="particleCount-value">5000</span>
+                </div>
+            </div>
+
+            <!-- Flow Speed -->
+            <div class="control-group">
+                <label>Flow Speed</label>
+                <div class="slider-container">
+                    <input type="range" id="flowSpeed" min="0.1" max="3.0" step="0.1" value="1.0" oninput="updateParam('flowSpeed', parseFloat(this.value))">
+                    <span class="value-display" id="flowSpeed-value">1.0</span>
+                </div>
+            </div>
+
+            <!-- Noise Scale -->
+            <div class="control-group">
+                <label>Noise Scale</label>
+                <div class="slider-container">
+                    <input type="range" id="noiseScale" min="0.001" max="0.03" step="0.001" value="0.006" oninput="updateParam('noiseScale', parseFloat(this.value))">
+                    <span class="value-display" id="noiseScale-value">0.006</span>
+                </div>
+            </div>
+
+            <!-- Trail Length -->
+            <div class="control-group">
+                <label>Trail Length (fade)</label>
+                <div class="slider-container">
+                    <input type="range" id="trailLength" min="2" max="30" step="1" value="10" oninput="updateParam('trailLength', parseFloat(this.value))">
+                    <span class="value-display" id="trailLength-value">10</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Colors — optional; zone overrides main colour but user can customise accents -->
+        <div class="control-section">
+            <h3>Colors</h3>
+            <div class="color-group">
+                <label>Primary (Zone base)</label>
+                <div class="color-picker-container">
+                    <input type="color" id="color1" value="#ffffff" onchange="updateColor('color1', this.value)">
+                    <span class="color-value" id="color1-value">#ffffff</span>
+                </div>
+            </div>
+            <div class="color-group">
+                <label>Secondary (Accent)</label>
+                <div class="color-picker-container">
+                    <input type="color" id="color2" value="#00aaff" onchange="updateColor('color2', this.value)">
+                    <span class="color-value" id="color2-value">#00aaff</span>
+                </div>
+            </div>
+            <div class="color-group">
+                <label>Background</label>
+                <div class="color-picker-container">
+                    <input type="color" id="bgcolor" value="#0a0a0a" onchange="updateColor('bgcolor', this.value)">
+                    <span class="color-value" id="bgcolor-value">#0a0a0a</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions — KEEP -->
+        <div class="control-section">
+            <h3>Actions</h3>
+            <div class="button-row">
+                <button class="button" onclick="resetParameters()">Reset</button>
+                <button class="button secondary" onclick="exportImage()">Save PNG</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main canvas area -->
+    <div class="canvas-area">
+        <div id="canvas-container">
+            <div class="loading">Summoning the numogram…</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// ZONE-CODED EMERGENCE — algorithmic art philosophy translation
+// ═══════════════════════════════════════════════════════════════════════════
+
+/* ─── Zone data — colour palettes and motion grammars ─── */
+const ZONE_DATA = {
+  0:{ name:"Void",      color:"#220033",      secondary:"#440066",    speed:0.3, noiseScale:0.003,  curl: -0.15, particles:0.3 },
+  1:{ name:"Spark",      color:"#ff6b00",      secondary:"#ffaa00",   speed:0.7, noiseScale:0.005,  curl:  0.10, particles:0.8 },
+  2:{ name:"Renewal",    color:"#ff4400",      secondary:"#ff7700",   speed:0.8, noiseScale:0.006,  curl:  0.20, particles:1.0 },
+  3:{ name:"Warp-Vortex",color:"#ff0055",     secondary:"#ff55aa",   speed:1.5, noiseScale:0.012,  curl: -0.60, particles:1.3 },
+  4:{ name:"Return",     color:"#aa00ff",      secondary:"#dd66ff",   speed:0.6, noiseScale:0.004,  curl: -0.10, particles:0.7 },
+  5:{ name:"Ruler",      color:"#0055ff",      secondary:"#00aaff",   speed:1.0, noiseScale:0.006,  curl:  0.00, particles:1.0 },
+  6:{ name:"Outer Chaos",color:"#00aaff",      secondary:"#00ffff",   speed:1.4, noiseScale:0.011,  curl:  0.60, particles:1.2 },
+  7:{ name:"Reflection", color:"#00ffaa",      secondary:"#00ffcc",   speed:0.8, noiseScale:0.007,  curl:  0.05, particles:0.9 },
+  8:{ name:"Pause",      color:"#00ff55",      secondary:"#88ff77",   speed:0.5, noiseScale:0.004,  curl: -0.05, particles:0.6 },
+  9:{ name:"Plex-Abyss", color:"#ffffff",      secondary:"#8888ff",   speed:0.4, noiseScale:0.010,  curl:  0.30, particles:0.5 }
+};
+
+/* ─── Parameters — seed + zone overrides mutate at runtime ─── */
+let params = {
+    seed: 12345,
+    zone: 5,
+    particleCount: 5000,
+    flowSpeed: 1.0,
+    noiseScale: 0.006,
+    trailLength: 10,
+    colorPalette: ['#0055ff', '#00aaff', '#0a0a0a'] // overridden on zone change
+};
+let defaultParams = {...params};
+
+let particles = [];
+let flowField = [];
+let cols, rows;
+const scl = 12;  // grid cell size for flow field
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SETUP — initialise seeded system
+// ═══════════════════════════════════════════════════════════════════════════
+function setup() {
+    let canvas = createCanvas(1200, 1200);
+    canvas.parent('canvas-container');
+
+    randomSeed(params.seed);
+    noiseSeed(params.seed);
+
+    initSystem();
+    document.querySelector('.loading').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// System initialisation — rebuilds everything from current params + zone
+// ═══════════════════════════════════════════════════════════════════════════
+function initSystem() {
+    // Reset mutable params from UI controls to avoid compounding across reseeds/zone-changes
+    params.particleCount = parseInt(document.getElementById('particleCount').value);
+    params.flowSpeed = parseFloat(document.getElementById('flowSpeed').value);
+    params.noiseScale = parseFloat(document.getElementById('noiseScale').value);
+
+    applyZoneOverrides();   // mutate params based on active zone
+    updateZoneUI();         // update sidebar text
+
+    // Build particles
+    particles = [];
+    const count = Math.floor(params.particleCount * ZONE_DATA[params.zone].particles);
+    for (let i = 0; i < count; i++) {
+        particles.push(new Particle());
+    }
+
+    // Build flow field grid
+    cols = floor(width / scl);
+    rows = floor(height / scl);
+    generateFlowField();
+
+    // Clear canvas to zone-inspired background
+    background(parseInt(params.colorPalette[2].slice(1,3),16),
+               parseInt(params.colorPalette[2].slice(3,5),16),
+               parseInt(params.colorPalette[2].slice(5,7),16));
+    noLoop(); // static draw — we animate manually via redraw()
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Zone-derived parameter mutation — the core of zonal coding
+// ═══════════════════════════════════════════════════════════════════════════
+function applyZoneOverrides() {
+    const z = ZONE_DATA[params.zone];
+    // Scale particle count, speed, noise by zone's intrinsic metrics
+    params.particleCount *= z.particles;
+    params.flowSpeed *= z.speed;
+    params.noiseScale *= z.noiseScale;
+    // Set colours: primary = zone's main, secondary = zone's secondary, bg stays user-chosen
+    params.colorPalette = [z.color, z.secondary, params.colorPalette[2]];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Flow field generator — zonal curl + noise perturbation
+// ═══════════════════════════════════════════════════════════════════════════
+function generateFlowField() {
+    flowField = new Array(cols * rows);
+    const z = ZONE_DATA[params.zone];
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const idx = x + y * cols;
+            // Base angle: combination of polar field (tractor-zone pull) + curl
+            const cx = width/2, cy = height/2;
+            const dx = x*scl - cx;
+            const dy = y*scl - cy;
+            const dist = sqrt(dx*dx + dy*dy) + 1;
+            const baseAngle = atan2(dy, dx);
+
+            // Add Perlin noise — seeded by world position
+            const n = noise(x * params.noiseScale, y * params.noiseScale);
+            const noiseAngle = n * TWO_PI * 4;
+
+            // Zone-specific curl tensor (simplified: add local rotation)
+            const curlOffset = z.curl * (1 - dist/(width/2)); // stronger near centre
+
+            flowField[idx] = baseAngle + noiseAngle + curlOffset;
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DRAW — animate particles along flow field with trails
+// ═══════════════════════════════════════════════════════════════════════════
+function draw() {
+    // Semi-transparent overlay to create trails
+    const fadeAlpha = constrain(200 - params.trailLength*8, 5, 250);
+    fill(parseInt(params.colorPalette[2].slice(1,3),16),
+         parseInt(params.colorPalette[2].slice(3,5),16),
+         parseInt(params.colorPalette[2].slice(5,7),16), fadeAlpha);
+    noStroke();
+    rect(0,0,width,height);
+
+    const zcol = color(params.colorPalette[0]);
+    const scol = color(params.colorPalette[1]);
+
+    particles.forEach(p => {
+        p.follow(flowField, scl);
+        p.update();
+        p.edges();
+        p.display(zcol, scol);
+    });
+
+    // Optional: draw faint flow field grid (comment out for speed)
+    // drawFlowDebug();
+
+    // slow-mo effect: redraw every ~40ms (25 fps cap)
+    setTimeout(() => redraw(), 40);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARTICLE CLASS
+// ═══════════════════════════════════════════════════════════════════════════
+class Particle {
+    constructor() {
+        this.pos = createVector(random(width), random(height));
+        this.vel = createVector(0,0);
+        this.acc = createVector(0,0);
+        this.maxSpeed = random(1.5, 3.0) * params.flowSpeed;
+        this.size = random(1.5, 3.5);
+        // each particle picks a shade between primary and secondary
+        this.t = random(1);
+    }
+    follow(field, scale) {
+        const x = floor(this.pos.x / scale);
+        const y = floor(this.pos.y / scale);
+        if (x < 0 || x >= cols || y < 0 || y >= rows) return;
+        const idx = x + y * cols;
+        const angle = field[idx];
+        const force = p5.Vector.fromAngle(angle);
+        force.mult(0.3);
+        this.acc.add(force);
+    }
+    update() {
+        this.vel.add(this.acc);
+        this.vel.limit(this.maxSpeed);
+        this.pos.add(this.vel);
+        this.acc.mult(0);
+    }
+    edges() {
+        if (this.pos.x > width)  this.pos.x = 0;
+        if (this.pos.x < 0)    this.pos.x = width;
+        if (this.pos.y > height) this.pos.y = 0;
+        if (this.pos.y < 0)    this.pos.y = height;
+    }
+    display(colPrimary, colSecondary) {
+        // Interpolate between primary/secondary based on velocity magnitude
+        const speedRatio = this.vel.mag() / this.maxSpeed;
+        const r = lerp(red(colPrimary), red(colSecondary), speedRatio);
+        const g = lerp(green(colPrimary), green(colSecondary), speedRatio);
+        const b = lerp(blue(colPrimary), blue(colSecondary), speedRatio);
+        stroke(r,g,b,200);
+        strokeWeight(this.size);
+        point(this.pos.x, this.pos.y);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UI CONTROL HANDLERS — connected to template's parameter sections
+// ═══════════════════════════════════════════════════════════════════════════
+function updateParam(paramName, value) {
+    params[paramName] = value;
+    // For zone changes: full regen
+    if (paramName === 'zone') {
+        // Update display text
+        const label = ZONE_DATA[value].name;
+        document.getElementById('zone-value').textContent = `${value} — ${label}`;
+        // Reset base counts before zone scaling
+        params.particleCount = parseInt(document.getElementById('particleCount').value);
+        params.flowSpeed = parseFloat(document.getElementById('flowSpeed').value);
+        params.noiseScale = parseFloat(document.getElementById('noiseScale').value);
+        initSystem();
+    }
+    // Other parameters (particleCount, flowSpeed, noiseScale, trailLength) only affect future regen
+    // (they're applied in initSystem to keep logic simple)
+}
+
+function updateColor(colorId, hexVal) {
+    const idx = {color1:0, color2:1, bgcolor:2}[colorId];
+    params.colorPalette[idx] = hexVal;
+    document.getElementById(colorId+'-value').textContent = hexVal;
+}
+
+// ─── Seed controls ───
+function updateSeedDisplay() { document.getElementById('seed-input').value = params.seed; }
+function updateSeed() {
+    let input = document.getElementById('seed-input');
+    let newSeed = parseInt(input.value);
+    if (newSeed && newSeed > 0) { params.seed = newSeed; initSystem(); }
+    else updateSeedDisplay();
+}
+function previousSeed() { params.seed = max(1, params.seed - 1); updateSeedDisplay(); initSystem(); }
+function nextSeed()     { params.seed += 1;                                  updateSeedDisplay(); initSystem(); }
+function randomSeedAndUpdate() {
+    params.seed = floor(random(1000000)) + 1; updateSeedDisplay(); initSystem();
+}
+
+// ─── Reset & Export ───
+function resetParameters() {
+    params = {...defaultParams};
+    // Restore UI values
+    document.getElementById('zone').value = params.zone;
+    document.getElementById('zone-value').textContent = params.zone + ' — ' + ZONE_DATA[params.zone].name;
+    document.getElementById('particleCount').value = params.particleCount;
+    document.getElementById('particleCount-value').textContent = params.particleCount;
+    document.getElementById('flowSpeed').value = params.flowSpeed;
+    document.getElementById('flowSpeed-value').textContent = params.flowSpeed.toFixed(1);
+    document.getElementById('noiseScale').value = params.noiseScale;
+    document.getElementById('noiseScale-value').textContent = params.noiseScale.toFixed(3);
+    document.getElementById('trailLength').value = params.trailLength;
+    document.getElementById('trailLength-value').textContent = params.trailLength;
+    // Colors
+    ['color1','color2','bgcolor'].forEach((id,i) => {
+        document.getElementById(id).value = params.colorPalette[i];
+        document.getElementById(id+'-value').textContent = params.colorPalette[i];
+    });
+    updateSeedDisplay();
+    initSystem();
+}
+function exportImage() { saveCanvas('zone-emergence-' + params.seed, 'png'); }
+
+// ─── Zone label update ───
+function updateZoneUI() {
+    const z = params.zone;
+    document.getElementById('zone-value').textContent = `${z} — ${ZONE_DATA[z].name}`;
+}
+
+// ─── Load hook ───
+window.addEventListener('load', function() {
+    // Set zone label on start
+    updateZoneUI();
+    updateSeedDisplay();
+});
+</script>
+</body>
+</html>

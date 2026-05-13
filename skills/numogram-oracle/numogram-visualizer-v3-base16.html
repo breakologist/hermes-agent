@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Numogram Oracle v3 — Extended Bases (Base-10 / Base-16 Memory Map)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&amp;display=swap');
+  
+  body { 
+    margin: 0; background: #050505; overflow: hidden; 
+    font-family: 'IBM Plex Mono', monospace; color: #00F5FF;
+  }
+  
+  #header {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; letter-spacing: 2px; opacity: 0.6; z-index: 40;
+  }
+  
+  #controls { 
+    position: fixed; top: 18px; right: 18px; z-index: 50;
+    background: rgba(5,5,5,0.92); padding: 10px 12px; border: 1px solid #00F5FF33;
+    border-radius: 3px; display: flex; flex-direction: column; gap: 6px;
+  }
+  
+  .base-toggle {
+    display: flex; gap: 2px; margin-bottom: 4px;
+  }
+  .base-btn {
+    flex: 1; padding: 4px 8px; font-size: 10px; border: 1px solid #00F5FF44;
+    background: #111; color: #00F5FF; cursor: pointer; transition: all 0.1s;
+  }
+  .base-btn.active { background: #00F5FF22; border-color: #00F5FF; font-weight: 600; }
+  
+  #seedInput { background: #111; color: #00F5FF; border: 1px solid #00F5FF44; 
+               padding: 6px 8px; font-size: 12px; width: 210px; }
+  button { background: #00F5FF11; color: #00F5FF; border: 1px solid #00F5FF44; 
+           padding: 5px 10px; font-size: 11px; cursor: pointer; }
+  button:hover { background: #00F5FF33; }
+  
+  #zoneSelector { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+                  z-index: 50; display: flex; gap: 3px; background: rgba(5,5,5,0.9);
+                  padding: 6px 10px; border: 1px solid #00F5FF22; border-radius: 3px; }
+  .zoneBtn { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #fff2;
+             cursor: pointer; transition: transform 0.1s; }
+  .zoneBtn:hover { transform: scale(1.2); }
+  .zoneBtn.active { box-shadow: 0 0 10px currentColor; border-color: #fff; }
+  
+  #info { position: fixed; bottom: 65px; left: 18px; font-size: 11px; line-height: 1.45;
+          background: rgba(5,5,5,0.88); padding: 8px 11px; border: 1px solid #00F5FF22;
+          max-width: 265px; z-index: 40; }
+  
+  #syzygyViz { position: fixed; top: 75px; left: 18px; width: 132px; height: 132px;
+               border: 1px solid #00F5FF22; background: rgba(5,5,5,0.7); z-index: 35; }
+  
+  #baseInfo {
+    position: fixed; top: 75px; right: 18px; font-size: 9px; line-height: 1.3;
+    background: rgba(5,5,5,0.85); padding: 6px 9px; border: 1px solid #00F5FF22;
+    max-width: 180px; z-index: 35; color: #00F5FF88;
+  }
+  
+  canvas { display: block; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+</head>
+<body>
+<div id="header">NUMOGRAM ORACLE v3 — EXTENDED BASES (DECIMAL / MEMORY MAP)</div>
+
+<div id="controls">
+  <div class="base-toggle">
+    <button class="base-btn active" onclick="switchBase(10)">DEC 10</button>
+    <button class="base-btn" onclick="switchBase(16)">MEM 16</button>
+    <button class="base-btn" style="opacity:0.4; cursor:not-allowed;" title="Coming next">DJY 36</button>
+  </div>
+  <div style="display:flex; gap:5px; align-items:center;">
+    <input type="text" id="seedInput" value="192855" style="width:168px;">
+    <button onclick="newOracle()" style="padding:5px 9px;">GO</button>
+  </div>
+  <div style="display:flex; gap:5px;">
+    <button onclick="newRandom()" style="flex:1;">RANDOM</button>
+    <button onclick="togglePause()" id="pauseBtn" style="flex:1;">PAUSE</button>
+  </div>
+  <div style="display:flex; align-items:center; gap:6px; font-size:10px;">
+    <span style="opacity:0.6;">DENSITY</span>
+    <input type="range" id="densitySlider" min="150" max="1400" step="50" value="650"
+           style="width:95px; accent-color:#00F5FF;" oninput="updateDensity()">
+    <span id="densityVal" style="width:28px; text-align:right; font-size:10px;">650</span>
+  </div>
+</div>
+
+<canvas id="syzygyViz" width="132" height="132"></canvas>
+
+<div id="info"></div>
+<div id="baseInfo"></div>
+<div id="zoneSelector"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+//  NUMOGRAM ORACLE v3 — BASE-10 + BASE-16 MEMORY MAP
+//  Live base switching • Canonical AQ • Generalized syzygies • Gate system
+//  Zone 5 self-decadence + C(10,2)=45 geometry preserved in decimal mode
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let particles = [];
+let seed = 192855;
+let zone = 0;
+let currentBase = 10;
+let frameCount_ = 0;
+let fieldOffset = 0;
+let paused = false;
+let particleCount = 650;
+
+// === BASE CONFIGURATIONS ===
+const BASE_CONFIG = {
+  10: {
+    name: "DECIMAL",
+    zoneCount: 10,
+    colors: [
+      [28,28,38],[255,175,55],[195,85,85],[0,225,255],[155,45,25],
+      [185,165,255],[75,215,195],[255,205,155],[225,165,185],[165,85,255]
+    ],
+    names: ["Void","Surge","Hold","Warp","Sink","Hinge","Vortex","Blood","Rise","Plex"],
+    regions: ["plex","time","time","warp","time","time","warp","time","time","plex"],
+    demons: ["Uttunul","—","Oddubb","Djynxx","Katak","—","Djynxx","Oddubb","Murrumur","Uttunul"],
+    descs: [
+      "Abyssal Origin — The void before the first count",
+      "Initiating Spark — The first door opens",
+      "Renewed Drive — Oddubb's mirror recursion",
+      "Chaotic Attractor — Djynxx triangularity (C(10,2)=45)",
+      "Closure & Return — Katak's catastrophic sink",
+      "Central Ruler — The hinge. Self-decadence 5+5=10",
+      "Upper Source — Vortical recursion (CCRU=69→6)",
+      "Heavy Sink — Blood and DNA current",
+      "Receptive Pause — The mouth of ascent",
+      "Terminal Abyss — Uttunul iron core"
+    ],
+    syzygyPartner: (z) => 9 - z,
+    currentName: (z) => { const p = 9-z; return Math.abs(z-p); }
+  },
+  16: {
+    name: "MEMORY MAP",
+    zoneCount: 16,
+    colors: [
+      [25,25,35],[255,170,50],[190,80,80],[0,220,255],[150,40,20],
+      [180,160,255],[70,210,190],[255,200,150],[220,160,180],[160,80,255],
+      [100,200,255],[255,120,180],[80,255,200],[200,80,255],[255,180,100],[40,40,60]
+    ],
+    names: ["Void","Surge","Hold","Warp","Sink","Hinge","Vortex","Blood","Rise","Plex",
+            "Echo","Fracture","Spiral","Abyss","Core","Null"],
+    regions: ["plex","time","time","warp","time","time","warp","time","time","plex",
+              "memory","memory","memory","abyss","core","null"],
+    demons: ["Uttunul","—","Oddubb","Djynxx","Katak","—","Djynxx","Oddubb","Murrumur","Uttunul",
+             "—","—","—","—","—","—"],
+    descs: [
+      "Abyssal Origin — The void before the first count",
+      "Initiating Spark — The first door opens",
+      "Renewed Drive — Oddubb's mirror recursion",
+      "Chaotic Attractor — Djynxx triangularity",
+      "Closure & Return — Katak's catastrophic sink",
+      "Central Ruler — The hinge. Self-decadence 5+5=10",
+      "Upper Source — Vortical recursion (CCRU=69→6)",
+      "Heavy Sink — Blood and DNA current",
+      "Receptive Pause — The mouth of ascent",
+      "Terminal Abyss — Uttunul iron core",
+      "Echo Chamber — Memory reflection (powers-of-2 cycle)",
+      "Fracture Point — 6-cycle kernel break (1-2-4-8-7-5)",
+      "Spiral Descent — Recursive memory stack",
+      "Abyssal Sink — Deep memory compression",
+      "Iron Core — Central memory register",
+      "Null Pointer — Terminal memory overflow"
+    ],
+    syzygyPartner: (z) => 15 - z,
+    currentName: (z) => { const p = 15-z; return Math.abs(z-p); }
+  }
+};
+
+let cfg = BASE_CONFIG[10];
+
+// === CANONICAL AQ (unchanged) ===
+const AQ_MAP = {};
+for (let i = 0; i < 10; i++) AQ_MAP[i.toString()] = i;
+for (let i = 0; i < 26; i++) {
+  AQ_MAP[String.fromCharCode(65 + i)] = 10 + i;
+  AQ_MAP[String.fromCharCode(97 + i)] = 10 + i;
+}
+
+function aqValue(text) {
+  let total = 0;
+  for (let char of text.toUpperCase()) if (char in AQ_MAP) total += AQ_MAP[char];
+  return total;
+}
+
+function digitalRoot(n, base = 10) {
+  n = Math.abs(Math.floor(n));
+  if (n === 0) return 0;
+  return 1 + (n - 1) % (base - 1);   // generalized digital root for any base
+}
+
+function deriveZone(val) {
+  return digitalRoot(val, currentBase) % cfg.zoneCount;
+}
+
+// === TRIANGULAR GATES (generalized) ===
+const TRIANGULAR = new Set();
+for (let i = 1; i < 300; i++) TRIANGULAR.add(i * (i + 1) / 2);
+
+function isTriangular(n) { return TRIANGULAR.has(n); }
+
+// === PARTICLE SYSTEM (adapted per base) ===
+class Particle {
+  constructor(x, y, z) {
+    this.x = x; this.y = y; this.vx = 0; this.vy = 0;
+    this.zone = z; this.life = 1.0; this.age = 0;
+    this.maxAge = 260 + seededRandom(seed + this.x * 70 + this.y) * 360;
+    this.size = 1.1 + seededRandom(seed + this.x + this.y * 35) * 1.7;
+    this.phase = seededRandom(seed + this.x * 7 + this.y * 13) * TWO_PI;
+    this.drag = 0.955 + seededRandom(seed + this.y * 28) * 0.04;
+    this.color = cfg.colors[z] || [100,100,100];
+  }
+
+  update(t) {
+    if (paused) return;
+    this.age++; this.life = Math.max(0, 1 - this.age / this.maxAge);
+    let fx = 0, fy = 0;
+    let s = 0.0028; let nx = this.x * s; let ny = this.y * s;
+    const isMem = currentBase === 16;
+
+    switch (this.zone) {
+      case 0: fx = noiseAt(nx, ny, t, 0.0012, 1) * 0.07; fy = noiseAt(nx+100, ny+100, t, 0.0012, 1) * 0.07; this.drag = 0.999; break;
+      case 1: { let d = distToCenter(this); fx = (this.x - width/2)/d * 0.32 * this.life; fy = (this.y - height/2)/d * 0.32 * this.life; this.drag = 0.96; break; }
+      case 2: { // competing attractors
+        let a1 = {x:width*0.25,y:height*0.25}, a2 = {x:width*0.75,y:height*0.75};
+        let d1 = dist(this.x,this.y,a1.x,a1.y), d2 = dist(this.x,this.y,a2.x,a2.y);
+        let dir = Math.sin(t*0.015 + this.phase) > 0 ? 1 : -1;
+        fx += (dir>0 ? (a1.x-this.x)/d1 : (a2.x-this.x)/d2) * 0.48;
+        fy += (dir>0 ? (a1.y-this.y)/d1 : (a2.y-this.y)/d2) * 0.48;
+        fx += noiseAt(nx,ny,t,0.004,2)*0.6; fy += noiseAt(nx+50,ny+50,t,0.004,2)*0.6; break;
+      }
+      case 3: { // Warp / triangular
+        let ang = noiseAt(nx,ny,t,0.0035,3) * TWO_PI * 2.1;
+        let spd = noiseAt(nx+160,ny+160,t,0.0025,2) * 2.1 + 0.55;
+        fx = Math.cos(ang)*spd; fy = Math.sin(ang)*spd;
+        let d = distToCenter(this); fx += (this.x-width/2)/d * 0.16; fy += (this.y-height/2)/d * 0.16; break;
+      }
+      case 4: { // Sink
+        let cx = width/2 + Math.cos(t*0.008 + this.phase)*width*0.3;
+        let cy = height/2 + Math.sin(t*0.006 + this.phase*0.6)*height*0.3;
+        fx = (cx-this.x)*0.0016; fy = (cy-this.y)*0.0016 + 0.16;
+        fx += noiseAt(nx,ny,t,0.005,2)*0.26; break;
+      }
+      case 5: { // Hinge / Self-decadence (Zone 5 special)
+        let d = distToCenter(this); let comp = 0.28 + Math.sin(t*0.008)*0.1;
+        fx = -(this.x-width/2)/d * comp; fy = -(this.y-height/2)/d * comp;
+        fx += noiseAt(nx,ny,t,0.006,1)*0.15; fy += noiseAt(nx+240,ny+240,t,0.006,1)*0.15;
+        if (isMem && Math.random()<0.03) { fx += (Math.random()-0.5)*0.8; fy += (Math.random()-0.5)*0.8; } // memory glitch
+        break;
+      }
+      case 6: { // Vortex / Moebius
+        let ang = noiseAt(nx,ny,t,0.004,3)*TWO_PI; fx = Math.cos(ang)*1.55; fy = Math.sin(ang)*1.55;
+        if (this.x<0) this.x=width; if (this.x>width) this.x=0;
+        if (this.y<0){this.y=height; this.phase+=PI;} if (this.y>height){this.y=0; this.phase+=PI;} break;
+      }
+      case 7: fy = -0.78 - noiseAt(nx,ny,t,0.0025,1)*0.25; fx = noiseAt(nx+80,ny,t,0.0035,2)*0.42; this.drag=0.972; break;
+      case 8: fx = Math.sin(t*0.0022 + this.phase)*0.11; fy = Math.cos(t*0.0032 + this.phase*0.6)*0.11;
+              fx += noiseAt(nx,ny,t,0.0016,1)*0.11; fy += noiseAt(nx+40,ny+40,t,0.0016,1)*0.11; this.drag=0.99; break;
+      case 9: { // Plex
+        let d = distToCenter(this); let pull = 0.5 + (1 - d/(width*0.45))*1.55;
+        let ang = Math.atan2(height/2-this.y, width/2-this.x) + PI/2;
+        fx = Math.cos(ang)*pull*0.45 + (width/2-this.x)/d * pull*0.3;
+        fy = Math.sin(ang)*pull*0.45 + (height/2-this.y)/d * pull*0.3; break;
+      }
+      // === BASE-16 ONLY ZONES (10-15) ===
+      case 10: // Echo — memory reflection
+        fx = Math.sin(t*0.003 + this.phase)*0.18; fy = Math.cos(t*0.0025 + this.phase*0.7)*0.18;
+        fx += noiseAt(nx+300,ny,t,0.002,2)*0.4; fy += noiseAt(nx,ny+300,t,0.002,2)*0.4;
+        if (Math.random()<0.04) { this.x += (Math.random()-0.5)*3; this.y += (Math.random()-0.5)*3; }
+        break;
+      case 11: // Fracture — 6-cycle kernel break
+        let kx = (this.zone % 6) * (width/7) + width*0.1;
+        fx = (kx - this.x) * 0.0022 + noiseAt(nx,ny,t,0.005,2)*0.5;
+        fy = (height*0.5 - this.y) * 0.0018 + Math.sin(t*0.01 + this.phase)*0.3;
+        break;
+      case 12: // Spiral — recursive memory stack
+        let ang12 = noiseAt(nx,ny,t,0.003,4) * TWO_PI * 3;
+        fx = Math.cos(ang12) * 1.8; fy = Math.sin(ang12) * 1.8;
+        fx += (width/2 - this.x) * 0.0008; fy += (height/2 - this.y) * 0.0008;
+        break;
+      case 13: // Abyss — deep compression
+        let d13 = distToCenter(this); fx = -(this.x-width/2)/d13 * 0.35; fy = -(this.y-height/2)/d13 * 0.35;
+        fx += noiseAt(nx*1.5,ny*1.5,t,0.001,3)*0.6; break;
+      case 14: // Core — central register
+        fx = (width/2 - this.x) * 0.0015 + Math.sin(t*0.004 + this.phase)*0.2;
+        fy = (height/2 - this.y) * 0.0015 + Math.cos(t*0.003 + this.phase*0.8)*0.2;
+        this.drag = 0.985; break;
+      case 15: // Null — terminal overflow
+        fx = noiseAt(nx*2,ny*2,t,0.0015,2)*1.2; fy = noiseAt(nx*2+100,ny*2+100,t,0.0015,2)*1.2;
+        if (this.life < 0.3) { this.x = random(width); this.y = random(height); }
+        break;
+      default:
+        fx = noiseAt(nx,ny,t,0.003,2)*0.4; fy = noiseAt(nx+50,ny+50,t,0.003,2)*0.4;
+    }
+
+    this.vx += fx; this.vy += fy; this.vx *= this.drag; this.vy *= this.drag;
+    this.x += this.vx; this.y += this.vy;
+
+    if (this.zone < 10 || currentBase === 10) {
+      if (this.x < -10) this.x = width+10; if (this.x > width+10) this.x = -10;
+      if (this.y < -10) this.y = height+10; if (this.y > height+10) this.y = -10;
+    }
+  }
+
+  draw() {
+    let alpha = this.life * 185;
+    let spd = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+    let c = this.color; let b = Math.min(1, spd*0.45 + 0.32);
+    stroke(c[0]*b, c[1]*b, c[2]*b, alpha);
+    strokeWeight(this.size * this.life * 0.85);
+    point(this.x, this.y);
+    
+    if ((this.zone === 1 || this.zone === 3 || this.zone === 9 || this.zone === 12) && spd > 1.1) {
+      stroke(c[0]*b*0.55, c[1]*b*0.55, c[2]*b*0.55, alpha*0.3);
+      strokeWeight(this.size * this.life * 0.35);
+      line(this.x - this.vx*0.55, this.y - this.vy*0.55, this.x, this.y);
+    }
+  }
+}
+
+function distToCenter(p) {
+  let dx = p.x - width/2, dy = p.y - height/2;
+  return Math.max(1, Math.sqrt(dx*dx + dy*dy));
+}
+
+function seededRandom(s) {
+  let x = Math.sin(s * 9301 + 49297) * 49297; return x - Math.floor(x);
+}
+
+function noiseAt(x, y, t, scale, oct) {
+  let val = 0, amp = 1, freq = scale;
+  for (let i = 0; i < oct; i++) {
+    val += amp * (noise(x*freq + fieldOffset, y*freq, t*0.01) - 0.5);
+    amp *= 0.5; freq *= 2;
+  }
+  return val;
+}
+
+// === INIT & DRAW ===
+function initParticles() {
+  particles = []; noiseSeed(seed); randomSeed(seed);
+  for (let i = 0; i < particleCount; i++) {
+    let x, y;
+    if (zone === 0) { x = random(width); y = random(height); }
+    else if (zone === 1 || zone === 5) { x = width/2 + random(-15,15); y = height/2 + random(-15,15); }
+    else if (zone === 7) { x = random(width); y = height - random(height*0.25); }
+    else if (zone === 9 || zone === 13) { let a = random(TWO_PI); let r = random(width*0.35); x = width/2 + Math.cos(a)*r; y = height/2 + Math.sin(a)*r; }
+    else if (currentBase === 16 && zone >= 10) { x = random(width*0.2, width*0.8); y = random(height*0.2, height*0.8); }
+    else { x = random(width); y = random(height); }
+    particles.push(new Particle(x, y, zone));
+  }
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  background(5,5,5);
+  cfg = BASE_CONFIG[currentBase];
+  initParticles();
+  updateInfo();
+  createZoneSelector();
+  drawSyzygyViz();
+  updateBaseInfo();
+}
+
+function draw() {
+  if (paused) return;
+  frameCount_++;
+  let fade = (zone === 0) ? 5 : (zone === 8 || zone === 15) ? 3 : 9;
+  noStroke(); fill(5,5,5,fade); rect(0,0,width,height);
+  fieldOffset += 0.00035; let t = frameCount_ * 0.015;
+
+  for (let p of particles) {
+    p.update(t); p.draw();
+    if (p.life <= 0) {
+      let nx = random(width), ny = random(height);
+      if (zone === 1 || zone === 5) { nx = width/2 + random(-8,8); ny = height/2 + random(-8,8); }
+      else if (zone === 7) ny = height - random(15);
+      else if (zone === 9 || zone === 13) { let a=random(TWO_PI); nx=width/2+Math.cos(a)*random(width*0.3); ny=height/2+Math.sin(a)*random(width*0.3); }
+      p.x = nx; p.y = ny; p.vx = p.vy = 0; p.life = 1; p.age = 0; p.maxAge = 260 + random()*360; p.phase = random(TWO_PI);
+    }
+  }
+
+  // center glows
+  if (zone === 5 || zone === 9 || zone === 14) {
+    let gs = (zone === 9 || zone === 14) ? 36 + Math.sin(t)*8 : 26;
+    let ga = 16 + Math.sin(t*1.7)*8; let gc = cfg.colors[zone];
+    noStroke();
+    for (let r = gs; r > 0; r -= 1.6) {
+      fill(gc[0], gc[1], gc[2], ga * (1 - r/gs));
+      ellipse(width/2, height/2, r*2, r*2);
+    }
+  }
+
+  if (zone === 0 && frameCount_ % 80 === 0) {
+    fill(cfg.colors[0][0], cfg.colors[0][1], cfg.colors[0][2], 25);
+    ellipse(random(width), random(height), 2.2, 2.2);
+  }
+
+  if (frameCount_ % 3 === 0) drawSyzygyViz();
+}
+
+function updateInfo() {
+  let dr = digitalRoot(seed, currentBase);
+  let partner = cfg.syzygyPartner(zone);
+  let curr = cfg.currentName(zone);
+  let aq = aqValue(document.getElementById('seedInput').value || seed.toString());
+  let gate = isTriangular(seed) || isTriangular(aq);
+  let gateStr = gate ? `<span style="color:#ff3366">OPEN — Gt-${zone*currentBase + partner}</span>` : `<span style="color:#00F5FF44">closed</span>`;
+
+  let html = `
+    <span style="color:#00F5FF88">SEED</span> ${seed} <span style="color:#00F5FF55">(${currentBase})</span><br>
+    <span style="color:#00F5FF88">AQ</span> ${aq} → <span style="color:#fff">ZONE ${zone}</span> <span style="color:#00F5FF66">(${cfg.names[zone]})</span><br>
+    <span style="color:#00F5FF88">REGION</span> ${cfg.regions[zone].toUpperCase()}<br>
+    <span style="color:#00F5FF88">SYZYGY</span> ${zone}::${partner} <span style="color:#00F5FF66">(${cfg.demons[zone]})</span><br>
+    <span style="color:#00F5FF88">CURRENT</span> ${curr} <span style="color:#00F5FF66">(${cfg.demons[partner] || '—'})</span><br>
+    <span style="color:#00F5FF88">GATE</span> ${gateStr}<br>
+    <span style="color:#00F5FF88">PHILOSOPHY</span> <span style="font-size:10px; opacity:0.82">${cfg.descs[zone]}</span>
+  `;
+  document.getElementById('info').innerHTML = html;
+}
+
+function drawSyzygyViz() {
+  let c = document.getElementById('syzygyViz');
+  let ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 132, 132);
+  let cx = 66, cy = 66, r = currentBase === 16 ? 48 : 52;
+  let partner = cfg.syzygyPartner(zone);
+
+  // background geometry
+  ctx.strokeStyle = '#00F5FF0F';
+  ctx.lineWidth = 1;
+  if (currentBase === 10) {
+    // pentagram for decimal
+    for (let i = 0; i < 5; i++) {
+      let a1 = (i * 72 - 90) * Math.PI / 180;
+      let a2 = ((i+2) * 72 - 90) * Math.PI / 180;
+      ctx.moveTo(cx + Math.cos(a1)*r, cy + Math.sin(a1)*r);
+      ctx.lineTo(cx + Math.cos(a2)*r, cy + Math.sin(a2)*r);
+    }
+  } else {
+    // hex grid hint for memory map
+    for (let i = 0; i < 6; i++) {
+      let a = (i * 60) * Math.PI / 180;
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a)*r*0.7, cy + Math.sin(a)*r*0.7);
+    }
+  }
+  ctx.stroke();
+
+  // current zone & partner nodes
+  let angZ = currentBase === 10 
+    ? ((zone % 5) * 72 + (zone > 4 ? 36 : 0) - 90) * Math.PI / 180
+    : (zone * 22.5 - 90) * Math.PI / 180;
+  let xz = cx + Math.cos(angZ) * (zone > (currentBase/2-1) ? r*0.52 : r);
+  let yz = cy + Math.sin(angZ) * (zone > (currentBase/2-1) ? r*0.52 : r);
+
+  let angP = currentBase === 10
+    ? ((partner % 5) * 72 + (partner > 4 ? 36 : 0) - 90) * Math.PI / 180
+    : (partner * 22.5 - 90) * Math.PI / 180;
+  let xp = cx + Math.cos(angP) * (partner > (currentBase/2-1) ? r*0.52 : r);
+  let yp = cy + Math.sin(angP) * (partner > (currentBase/2-1) ? r*0.52 : r);
+
+  // connection + flow
+  ctx.strokeStyle = '#00F5FF44';
+  ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(xz, yz); ctx.lineTo(xp, yp); ctx.stroke();
+
+  let flowT = (frameCount_ % 55) / 55;
+  for (let i = 0; i < 3; i++) {
+    let f = (flowT + i * 0.31) % 1;
+    let fx = xz + (xp - xz) * f;
+    let fy = yz + (yp - yz) * f;
+    ctx.fillStyle = i === 0 ? '#00F5FF' : '#00F5FF77';
+    ctx.beginPath(); ctx.arc(fx, fy, i===0 ? 2 : 1.3, 0, Math.PI*2); ctx.fill();
+  }
+
+  // nodes
+  ctx.fillStyle = `rgb(${cfg.colors[zone][0]},${cfg.colors[zone][1]},${cfg.colors[zone][2]})`;
+  ctx.beginPath(); ctx.arc(xz, yz, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = `rgb(${cfg.colors[partner][0]},${cfg.colors[partner][1]},${cfg.colors[partner][2]})`;
+  ctx.beginPath(); ctx.arc(xp, yp, 4.2, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = '#00F5FF77';
+  ctx.font = '8px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText(zone.toString(16).toUpperCase(), xz, yz + 13);
+  ctx.fillText(partner.toString(16).toUpperCase(), xp, yp + 13);
+}
+
+function createZoneSelector() {
+  let container = document.getElementById('zoneSelector');
+  container.innerHTML = '';
+  for (let z = 0; z < cfg.zoneCount; z++) {
+    let btn = document.createElement('div');
+    btn.className = 'zoneBtn';
+    btn.style.background = `rgb(${cfg.colors[z][0]},${cfg.colors[z][1]},${cfg.colors[z][2]})`;
+    btn.title = `${z.toString(16).toUpperCase()} — ${cfg.names[z]}`;
+    if (z === zone) btn.classList.add('active');
+    btn.onclick = () => {
+      zone = z;
+      background(5,5,5);
+      initParticles();
+      updateInfo();
+      createZoneSelector();
+      drawSyzygyViz();
+    };
+    container.appendChild(btn);
+  }
+}
+
+function updateBaseInfo() {
+  let el = document.getElementById('baseInfo');
+  if (currentBase === 10) {
+    el.innerHTML = `<b>DECIMAL</b><br>C(10,2)=45 • 5 syzygies • Zone 5 self-decadence (5+5=10)<br>Pentagram geometry active`;
+  } else {
+    el.innerHTML = `<b>MEMORY MAP (Base-16)</b><br>16 zones • 6-cycle kernel (1-2-4-8-7-5)<br>Powers-of-2 memory recursion • 8 new zones (A–F)`;
+  }
+}
+
+function switchBase(newBase) {
+  if (newBase === currentBase) return;
+  if (newBase === 36) { alert("Base-36 Djynxxogram coming in next iteration!"); return; }
+  
+  currentBase = newBase;
+  cfg = BASE_CONFIG[newBase];
+  zone = deriveZone(seed);
+  
+  // refresh UI
+  document.querySelectorAll('.base-btn').forEach(b => b.classList.remove('active'));
+  event.currentTarget?.classList.add('active'); // if called from click
+  
+  background(5,5,5);
+  initParticles();
+  updateInfo();
+  createZoneSelector();
+  drawSyzygyViz();
+  updateBaseInfo();
+  
+  // re-attach active class properly
+  setTimeout(() => {
+    document.querySelectorAll('.base-btn').forEach((b,i) => {
+      b.classList.toggle('active', (i===0 && newBase===10) || (i===1 && newBase===16));
+    });
+  }, 10);
+}
+
+function updateDensity() {
+  let val = parseInt(document.getElementById('densitySlider').value);
+  document.getElementById('densityVal').innerText = val;
+  if (val !== particleCount) {
+    particleCount = val;
+    initParticles();
+  }
+}
+
+function newOracle() {
+  let input = document.getElementById('seedInput').value.trim() || '192855';
+  seed = isNaN(input) ? aqValue(input) : parseInt(input);
+  zone = deriveZone(seed);
+  background(5,5,5);
+  initParticles();
+  updateInfo();
+  createZoneSelector();
+  drawSyzygyViz();
+}
+
+function newRandom() {
+  seed = Math.floor(Math.random() * 9999999);
+  document.getElementById('seedInput').value = seed;
+  zone = deriveZone(seed);
+  background(5,5,5);
+  initParticles();
+  updateInfo();
+  createZoneSelector();
+  drawSyzygyViz();
+}
+
+function togglePause() {
+  paused = !paused;
+  document.getElementById('pauseBtn').innerText = paused ? 'RESUME' : 'PAUSE';
+  if (!paused) loop(); else noLoop();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  background(5,5,5);
+  if (!paused) initParticles();
+}
+
+function keyPressed() {
+  if (key === 'r' || key === 'R') newRandom();
+  if (key === ' ') { togglePause(); return false; }
+  if (key === 'g' || key === 'G') {
+    for (let i = 0; i < 55; i++) {
+      let p = new Particle(random(width), random(height), zone);
+      p.maxAge = 35; particles.push(p);
+    }
+  }
+  if (key === 'b' || key === 'B') {
+    let next = currentBase === 10 ? 16 : 10;
+    switchBase(next);
+  }
+}
+</script>
+</body>
+</html>

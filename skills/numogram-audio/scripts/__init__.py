@@ -1,0 +1,1 @@
+# mod-writer-composer scripts package

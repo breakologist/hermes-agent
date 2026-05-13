@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+env.bak/
+venv.bak/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Edits
+*.orig
+*.rej
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+
+# Data/example artifacts (optional)
+*.mod
+*.wav
+*.png
+*.json
+!data/canonical_vectors.json
+!canonical_vectors.json
+!examples/*.mod

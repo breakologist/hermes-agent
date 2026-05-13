@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pretext Zone Reader — Numogram Typography</title>
+  <!-- Pretext from esm.sh (pinned) -->
+  <script type="module">
+    import {
+      prepareWithSegments,
+      layoutWithLines,
+      layoutNextLineRange,
+      materializeLineRange,
+      measureLineStats,
+      walkLineRanges
+    } from "https://esm.sh/@chenglou/pretext@0.0.6";
+    window.PRE_TEXT_READY = true;
+  </script>
+  <style>
+    /* CRT/terminal aesthetic */
+    html, body { margin:0; padding:0; background:#0a0a0a; color:#ccb8a0; font-family: "JetBrains Mono", "Iowan Old Style", Georgia, serif; overflow:hidden; height:100%; }
+    #canvas { display:block; background:#0d0d0f; margin-top: 160px; }
+    #ui {
+      position: fixed; top: 12px; left: 12px; z-index: 10;
+      font-family: "JetBrains Mono", monospace; font-size: 13px;
+      background: rgba(10,10,12,0.85); border: 1px solid #2a2a35; border-radius: 6px;
+      padding: 10px 12px; max-width: 320px; backdrop-filter: blur(4px);
+    }
+    #ui h1 { margin:0 0 8px 0; font-size:15px; letter-spacing:0.5px; color:#e8dcc8; }
+    #ui label { display:block; margin:6px 0 2px; opacity:0.8; }
+    #ui input, #ui textarea, #ui button {
+      width:100%; background:#111; border:1px solid #333; color:#ccb8a0;
+      border-radius:4px; padding:4px 6px; font-family:inherit; font-size:13px;
+    }
+    #ui textarea { resize:none; height:48px; }
+    #ui button { cursor:pointer; background:#1a1a22; border-color:#445; transition:background 0.2s; margin-top:4px; }
+    #ui button:hover { background:#222230; }
+    #zone-display { font-weight:bold; letter-spacing:1px; margin:4px 0 8px; }
+    .pulse { animation: pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:0.6;} 50%{opacity:1;} }
+    .zone-1 { color:#ffaa00; } .zone-2 { color:#ff5500; } .zone-3 { color:#ff0055; }
+    .zone-4 { color:#aa00ff; } .zone-5 { color:#0055ff; } .zone-6 { color:#00aaff; }
+    .zone-7 { color:#00ffaa; } .zone-8 { color:#00ff55; } .zone-9 { color:#ffffff; }
+    #fps { position:fixed; bottom:8px; right:8px; font-size:10px; opacity:0.5; }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+  <h1>◇ ZONE READER</h1>
+  <label> invocation </label>
+  <textarea id="phrase">THE CYBERNETIC CULTURE RESEARCH UNIT</textarea>
+
+  <label> zone </label>
+  <div id="zone-display" class="zone-5">Zone — Gate — Current</div>
+
+  <button id="cycle-btn">cycle zone ↻</button>
+  <button id="random-btn">random phrase ↺</button>
+  <div style="margin-top:8px; font-size:11px; opacity:0.6; line-height:1.3;">
+    Drag the pentagram to reposition the text flow. Click the canvas to cycle zones.
+  </div>
+</div>
+
+<div id="fps">fps: —</div>
+
+<script type="module">
+  // ───────────────────────────────────────────────────────────────────────────
+  // 1. AQ (Alphanumeric Qabbala) engine — Base-36 → Digital Root → Zone
+  // ───────────────────────────────────────────────────────────────────────────
+  const DIGIT_VAL = { '0':0,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,
+    'A':10,'B':11,'C':12,'D':13,'E':14,'F':15,'G':16,'H':17,'I':18,'J':19,
+    'K':20,'L':21,'M':22,'N':23,'O':24,'P':25,'Q':26,'R':27,'S':28,'T':29,
+    'U':30,'V':31,'W':32,'X':33,'Y':34,'Z':35,
+    'a':10,'b':11,'c':12,'d':13,'e':14,'f':15,'g':16,'h':17,'i':18,'j':19,
+    'k':20,'l':21,'m':22,'n':23,'o':24,'p':25,'q':26,'r':27,'s':28,'t':29,
+    'u':30,'v':31,'w':32,'x':33,'y':34,'z':35 };
+  function aqSum(str) {
+    let s = 0;
+    for (const ch of str) if (DIGIT_VAL[ch] !== undefined) s += DIGIT_VAL[ch];
+    return s;
+  }
+  function digitalRoot(n) {
+    if (n===0) return 0;
+    return 1 + ((n-1) % 9);
+  }
+  function deriveZone(aq) {
+    const dr = digitalRoot(aq);
+    return dr; // 0–9 (0=Void, 9=Plex). In some contexts 9 also called "Plex"
+  }
+
+  // Gate: C(n+1) where n = gate index; simpler: gate = digitalRoot(sum of all values of the gate-name?)
+  // For this demo we'll skip gate & current derivation; zone is sufficient.
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 2. Zone corpus and glyphs
+  // ───────────────────────────────────────────────────────────────────────────
+  const ZONES = {
+    0:{name:"Void (0)",color:"#220022",glyph:"●",desc:"Abyssal origin — the zeroth node, pure nullity."},
+    1:{name:"Initiating Spark (1)",color:"#ff6b00",glyph:"▲",desc:"Origin of the 1-current; beginning the crossing."},
+    2:{name:"Renewed Drive (2)",color:"#ff4400",glyph:"▶",desc:"Potential for jolt; enumeration of possibilities via 5-current."},
+    3:{name:"Chaotic Vortex (3 · Warp)",color:"#ff0055",glyph:"✧",desc:"Tractor of the Warp. Chaotic potencies, swarm incursions from Outside."},
+    4:{name:"Closure / Return (4)",color:"#aa00ff",glyph:"◀",desc:"Final modulation before looping back; cautionary return."},
+    5:{name:"Central Ruler (5)",color:"#0055ff",glyph:"◆",desc:"Core strength; central position; 5-current emphasis."},
+    6:{name:"Outer Chaos (6 · Warp)",color:"#00aaff",glyph:"⟁",desc:"Second Warp zone; terminus for chaotic channels."},
+    7:{name:"Inward Reflection (7)",color:"#00ffaa",glyph:"◉",desc:"Differentiation and perseverance; 5-current continuation."},
+    8:{name:"Receptive Pause (8)",color:"#00ff55",glyph:"▼",desc:"Holding or braking momentum; 7-current receptivity."},
+    9:{name:"Terminal Abyss (9 · Plex)",color:"#ffffff",glyph:"◌",desc:"Tractor-zone of Plex; apocalypse, completion, outermost spiral."}
+  };
+
+  const ZONE_NAMES = {
+    1:"Spark",2:"Renewal",3:"Warp-Vortex",4:"Return",5:"Ruler",
+    6:"Warp-Outer",7:"Reflection",8:"Pause",9:"Plex-Abyss",0:"Void"
+  };
+  const ZONE_DESCRIPTIONS = {
+    1:"origin • 1-current • beginning the crossing",
+    2:"possibility • 5-current • enumeration",
+    3:"chaos • tractor • swarm-incursion",
+    4:"closure • return • caution",
+    5:"center • ruler • core strength",
+    6:"exterior • turbulence • outer-time",
+    7:"reflection • differentiation • perseverance",
+    8:"receptive • pause • hold momentum",
+    9:"terminus • terminal • abyssal boundary",
+    0:"void • null • origin-point"
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 3. Canvas & Pretext integration
+  // ───────────────────────────────────────────────────────────────────────────
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  let W, H;
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  // Interactive state
+  let mouse = { x: W/2, y: H/2, dragging: false };
+  let currentZone = 5; // default Cent-Ruler
+
+  // Pentagram obstacle definition (rough)
+  const pentagram = {
+    cx: W/2, cy: H/2,
+    radius: Math.min(W,H)*0.18,
+    rotation: Date.now()/4000
+  };
+
+  // Text state
+  let phrase = "THE CYBERNETIC CULTURE RESEARCH UNIT";
+  let prepared = null;
+  let lines = [];
+  let cursor = { segmentIndex:0, graphemeIndex:0 }; // for streaming layout
+  let textY = 0;
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 4. Pretext helpers — measure and layout
+  // ───────────────────────────────────────────────────────────────────────────
+  function prepareText() {
+    try {
+      const FONT = "18px 'JetBrains Mono'";
+      prepared = prepareWithSegments(phrase, FONT);
+      if (!prepared) throw new Error("prepareWithSegments returned falsy");
+      layoutTextLines();
+    } catch (e) {
+      console.error("Pretext prepare error:", e);
+      prepared = null;
+      lines = [];
+    }
+  }
+
+  function layoutTextLines() {
+    if (!prepared) {
+      console.warn("layoutTextLines: prepared falsy");
+      return;
+    }
+    // Re-flow around a movable pentagram obstacle
+    const cx = pentagram.cx, cy = pentagram.cy, r = pentagram.radius;
+    cursor.segmentIndex = 0; cursor.graphemeIndex = 0;
+    lines = [];
+    let y = 60;
+    let lineCount = 0;
+    while (true) {
+      let lineWidth = W - 80;
+      const dy = Math.abs(y - cy);
+      if (dy < r) {
+        const chordHalf = Math.sqrt(r*r - dy*dy);
+        const reduction = chordHalf * 2 + 40;
+        lineWidth = Math.max(80, lineWidth - reduction);
+      }
+      const range = layoutNextLineRange(prepared, cursor, lineWidth);
+      if (!range) {
+        console.debug(`layout: no more ranges after ${lineCount} lines`);
+        break;
+      }
+      const line = materializeLineRange(prepared, range);
+      lines.push({ text: line.text, y });
+      y += 26;
+      cursor = range.end;
+      lineCount++;
+      if (lines.length > 200) break;
+    }
+    console.debug(`layoutTextLines produced ${lines.length} lines`);
+    textY = 0;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 5. Render loop
+  // ───────────────────────────────────────────────────────────────────────────
+  let lastTime = 0;
+  function render(now) {
+    const dt = (now - lastTime)/1000 || 0; lastTime = now;
+
+    // Background
+    ctx.fillStyle = "#0d0d0f";
+    ctx.fillRect(0,0,W,H);
+    // faint grid
+    ctx.strokeStyle = "#1a1a22";
+    ctx.lineWidth = 1;
+    for(let x=0;x<W;x+=60){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for(let y=0;y<H;y+=40){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+    // Zone colour tint
+    const zoneCol = ZONES[currentZone].color;
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = zoneCol;
+    ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha = 1;
+
+    // Pentagram (decorative wireframe)
+    pentagram.rotation += 0.15*dt;
+    pentagram.cx = mouse.x; pentagram.cy = mouse.y;
+    // enlarge radius for more dramatic text exclusion
+    pentagram.radius = Math.min(W,H) * 0.35;
+
+    // ── Text flow layout ───────────────────────────────────────────────────────
+    // Reflow every frame so the obstacle geometry is respected dynamically
+    // Note: called AFTER pentagram coords are updated
+    try {
+      layoutTextLines();
+    } catch (e) {
+      console.error("layout error:", e);
+      lines = [];
+    }
+
+    // If Pretext produced no lines, draw raw phrase as fallback so the canvas isn't blank
+    if (lines.length === 0) {
+      ctx.fillStyle = "#ccb8a0";
+      ctx.font = "18px 'JetBrains Mono'";
+      ctx.fillText(phrase, 40, 60);
+      console.warn("Pretext produced no lines — rendered raw phrase fallback");
+    }
+
+
+    // Draw the pentagram (on top of text)
+    ctx.save();
+    ctx.translate(pentagram.cx, pentagram.cy);
+    ctx.rotate(pentagram.rotation);
+    ctx.strokeStyle = zoneCol; ctx.lineWidth = 2; ctx.globalAlpha = 0.6;
+    // outer pentagram
+    ctx.beginPath();
+    for(let i=0;i<5;i++){
+      const a = (i*4*Math.PI/5) - Math.PI/2;
+      const x = Math.cos(a)*pentagram.radius, y = Math.sin(a)*pentagram.radius;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.closePath(); ctx.stroke();
+    // inner pentagram
+    ctx.beginPath();
+    for(let i=0;i<5;i++){
+      const a = (i*4*Math.PI/5) + Math.PI/5 - Math.PI/2;
+      const x = Math.cos(a)*pentagram.radius*0.5, y = Math.sin(a)*pentagram.radius*0.5;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.closePath(); ctx.stroke();
+    ctx.restore();
+
+    // Text flow (Pretext)
+    ctx.font = "18px 'JetBrains Mono'";
+    ctx.fillStyle = "#ccb8a0";
+    ctx.textBaseline = "top";
+    lines.forEach((ln, i) => {
+      const y = ln.y + Math.sin(now/1200 + i)*0.6;  // micro-sway
+      ctx.fillText(ln.text, 40, y);
+    });
+
+    // Zone overlay (top-right)
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = zoneCol;
+    ctx.font = "bold 14px 'JetBrains Mono'";
+    ctx.fillText(`Zone ${currentZone} · ${ZONE_NAMES[currentZone]}`, W-220, 24);
+    ctx.font = "11px serif";
+    ctx.fillStyle = "#998877";
+    ctx.fillText(ZONE_DESCRIPTIONS[currentZone], W-220, 42);
+
+    // FPS
+    document.getElementById("fps").textContent = `fps: ${Math.round(1/dt)}`;
+
+    requestAnimationFrame(render);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 6. UX wiring
+  // ───────────────────────────────────────────────────────────────────────────
+  const phraseInput = document.getElementById("phrase");
+  phraseInput.addEventListener("input", (e) => {
+    phrase = e.target.value || "…";
+    prepareText();
+  });
+
+  document.getElementById("cycle-btn").onclick = () => {
+    currentZone = (currentZone + 1) % 10;
+    updateZoneDisplay();
+    prepareText(); // re-flow zone-specific (future: could vary width by zone)
+  };
+
+  document.getElementById("random-btn").onclick = () => {
+    const samples = [
+      "THE CYBERNETIC CULTURE RESEARCH UNIT",
+      "DO WHAT THOU WILT SHALL BE THE WHOLE OF THE LAW",
+      "HERMETIC APHORISM: THE NUMOGRAM WRITES ITSELF",
+      "ABRACADABRA",
+      "I CHING HEXAGRAM 64 BEFORE COMPLETION",
+      "PANDEMONIUM MATRIX 45 DEMONS",
+      "THE THUNDER PERFECT MIND"
+    ];
+    phrase = samples[Math.floor(Math.random()*samples.length)];
+    phraseInput.value = phrase;
+    prepareText();
+  };
+
+  function updateZoneDisplay() {
+    const zoneDiv = document.getElementById("zone-display");
+    zoneDiv.textContent = `Zone ${currentZone} — ${ZONES[currentZone].name}`;
+    zoneDiv.className = "pulse zone-" + currentZone;
+  }
+
+  // Mouse drag for pentagram
+  canvas.addEventListener("mousedown", e => mouse.dragging = true);
+  canvas.addEventListener("mouseup",   e => mouse.dragging = false);
+  canvas.addEventListener("mousemove", e => {
+    if(mouse.dragging){ mouse.x = e.clientX; mouse.y = e.clientY; }
+  });
+
+  // Click on canvas to cycle
+  canvas.addEventListener("click", () => {
+    currentZone = (currentZone + 1) % 10;
+    updateZoneDisplay();
+    prepareText();
+  });
+
+  // Touch support
+  canvas.addEventListener("touchstart", e => {
+    mouse.dragging = true;
+    mouse.x = e.touches[0].clientX;
+    mouse.y = e.touches[0].clientY;
+    e.preventDefault();
+  });
+  canvas.addEventListener("touchmove", e => {
+    mouse.x = e.touches[0].clientX;
+    mouse.y = e.touches[0].clientY;
+    e.preventDefault();
+  });
+  canvas.addEventListener("touchend", e => {
+    mouse.dragging = false;
+    currentZone = (currentZone + 1) % 10;
+    updateZoneDisplay();
+    prepareText();
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 7. Bootstrap
+  // ───────────────────────────────────────────────────────────────────────────
+  async function init() {
+    while (!window.PRE_TEXT_READY) await new Promise(r => setTimeout(r, 100));
+    await document.fonts.ready; // ensure fonts loaded before measuring text
+    const initialAQ = aqSum(phrase);
+    currentZone = deriveZone(initialAQ);
+    updateZoneDisplay();
+    prepareText();
+    requestAnimationFrame(render);
+  }
+  init();
+
+</script>
+</body>
+</html>
