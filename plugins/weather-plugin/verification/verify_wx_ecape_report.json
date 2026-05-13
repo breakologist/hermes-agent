@@ -1,0 +1,80 @@
+[
+  {
+    "model": "hrrr",
+    "status": "ok",
+    "plugin_ecape_jkg": 55.382626362262954,
+    "direct_ecape_jkg": 55.382626362262954,
+    "abs_diff_ecape_jkg": 0.0,
+    "plugin_ncape_jkg": 1161.2015593668268,
+    "direct_ncape_jkg": 1161.2015593668268,
+    "abs_diff_ncape_jkg": 0.0,
+    "plugin_cape_jkg": 5.383909071229525e-06,
+    "direct_cape_jkg": 5.383909071229525e-06,
+    "abs_diff_cape_jkg": 0.0
+  },
+  {
+    "model": "hrrrak",
+    "status": "ok",
+    "plugin_ecape_jkg": 88.77688871586156,
+    "direct_ecape_jkg": 88.77688871586156,
+    "abs_diff_ecape_jkg": 0.0,
+    "plugin_ncape_jkg": 234.64593807339384,
+    "direct_ncape_jkg": 234.64593807339384,
+    "abs_diff_ncape_jkg": 0.0,
+    "plugin_cape_jkg": 1.06900686072608e-05,
+    "direct_cape_jkg": 1.06900686072608e-05,
+    "abs_diff_cape_jkg": 0.0
+  },
+  {
+    "model": "gfs",
+    "status": "ok",
+    "plugin_ecape_jkg": 23.3793759105381,
+    "direct_ecape_jkg": 23.3793759105381,
+    "abs_diff_ecape_jkg": 0.0,
+    "plugin_ncape_jkg": 1159.6109466053804,
+    "direct_ncape_jkg": 1159.6109466053804,
+    "abs_diff_ncape_jkg": 0.0,
+    "plugin_cape_jkg": 1.847382003306793e-06,
+    "direct_cape_jkg": 1.847382003306793e-06,
+    "abs_diff_cape_jkg": 0.0
+  },
+  {
+    "model": "gdas",
+    "status": "ok",
+    "plugin_ecape_jkg": 23.176419737105107,
+    "direct_ecape_jkg": 23.176419737105107,
+    "abs_diff_ecape_jkg": 0.0,
+    "plugin_ncape_jkg": 1161.3638476105812,
+    "direct_ncape_jkg": 1161.3638476105812,
+    "abs_diff_ncape_jkg": 0.0,
+    "plugin_cape_jkg": 1.8442857677839595e-06,
+    "direct_cape_jkg": 1.8442857677839595e-06,
+    "abs_diff_cape_jkg": 0.0
+  },
+  {
+    "model": "graphcast",
+    "status": "ok",
+    "plugin_ecape_jkg": 49.52682009736259,
+    "direct_ecape_jkg": 49.52682009736259,
+    "abs_diff_ecape_jkg": 0.0,
+    "plugin_ncape_jkg": 488.01722876282287,
+    "direct_ncape_jkg": 488.01722876282287,
+    "abs_diff_ncape_jkg": 0.0,
+    "plugin_cape_jkg": 6.892661810287021e-06,
+    "direct_cape_jkg": 6.892661810287021e-06,
+    "abs_diff_cape_jkg": 0.0
+  },
+  {
+    "model": "rrfs",
+    "status": "ok",
+    "plugin_ecape_jkg": 57.270644479874136,
+    "direct_ecape_jkg": 57.270644479874136,
+    "abs_diff_ecape_jkg": 0.0,
+    "plugin_ncape_jkg": 1286.0880447560673,
+    "direct_ncape_jkg": 1286.0880447560673,
+    "abs_diff_ncape_jkg": 0.0,
+    "plugin_cape_jkg": 5.023352655643287e-06,
+    "direct_cape_jkg": 5.023352655643287e-06,
+    "abs_diff_cape_jkg": 0.0
+  }
+]
